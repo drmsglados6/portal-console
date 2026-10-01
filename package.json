@@ -1,6 +1,6 @@
 {
   "name": "portal-console",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Portal-inspired multi-screen terminal for Linux, macOS, and Windows",
   "author": "Portal Console contributors",
   "homepage": "https://github.com/drmsglados6/portal-console",
@@ -63,12 +63,18 @@
         {
           "from": "node_modules/node-pty/prebuilds/darwin-x64",
           "to": "app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-x64",
-          "filter": ["pty.node", "spawn-helper"]
+          "filter": [
+            "pty.node",
+            "spawn-helper"
+          ]
         },
         {
           "from": "node_modules/node-pty/prebuilds/darwin-arm64",
           "to": "app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-arm64",
-          "filter": ["pty.node", "spawn-helper"]
+          "filter": [
+            "pty.node",
+            "spawn-helper"
+          ]
         }
       ],
       "target": [

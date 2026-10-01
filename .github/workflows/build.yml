@@ -61,6 +61,9 @@ jobs:
         run: npm run dist -- --${{ matrix.platform }} --${{ matrix.arch }} --publish never
       - name: Verify packaged native dependencies
         run: node scripts/check-packaged.js
+      - name: Verify packaged headless launcher
+        if: runner.os == 'Linux'
+        run: python3 scripts/check-headless.py
       - name: Bundle simple Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
@@ -84,7 +87,7 @@ jobs:
   release:
     name: Publish tagged release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, ubuntu-gui]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -104,3 +107,26 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"
           fi
           gh release upload "$RELEASE_TAG" packages/* --clobber
+
+  ubuntu-gui:
+    name: Ubuntu 24.04 GUI and headless
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 pkg-config xvfb \
+            libgtk-3-0 libnss3 libasound2t64 libgbm1 libxss1 libatk-bridge2.0-0 \
+            libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
+            libpangocairo-1.0-0 libcups2
+      - run: npm ci
+      - run: npm run dist -- --linux --x64 --dir --publish never
+      - run: node scripts/check-packaged.js
+      - run: python3 scripts/check-headless.py
+      - run: xvfb-run -a node scripts/check-linux-gui.js

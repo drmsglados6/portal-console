@@ -124,6 +124,26 @@ GitHub Actionsの **Build and release** はmainへのpush、pull request、手�
 
 リリース時は `package.json` のバージョンに合わせた `v0.1.0` のようなタグをpushします。全OSのビルド成功後、そのタグのGitHub Releaseへ成果物を自動添付します。通常のpushや手動実行ではReleaseは作成しません。
 
+### Headless / SSH
+
+Linux配布版（v0.1.1以降）は、SSHなどDISPLAY／WAYLAND_DISPLAYのない環境で自動的にANSIヘッドレス版を起動します。明示的な起動も可能です。別途Node.jsをインストールする必要はありません。
+
+```sh
+portal-console --headless
+portal-console --headless --mode modern
+```
+
+ソース版では `npm run headless` を使います。対話TTYが必要なので、SSHは `ssh -t` で接続し、入出力をパイプやファイルへリダイレクトせず実行してください。
+
+- `Ctrl+B` → `1` / `2`: ターミナル選択
+- `Ctrl+B` → `N`: 次のターミナル
+- `Ctrl+B` → `C`: コマンドモード（`R`で再起動、`Esc`で戻る）
+- `Ctrl+B` → `Q`、または `portal-exit`: アプリ終了
+
+v0.1.0のLinux配布版ではこのランチャー切替が欠けていたため、GUIのない環境ではv0.1.1以降を使用してください。
+
+LinuxのGUIはGTK 3を使用します。v0.1.0でUbuntu 24.04のGTKエラーが出る場合は `portal-console --gtk-version=3` を試してください。CIではUbuntu 24.04上の仮想XサーバーでもGUIペイン生成と終了を検証します。
+
 ### Simple Windows Installer
 
 簡易インストーラ一式を生成します。
