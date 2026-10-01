@@ -45,6 +45,13 @@ try {
   assert.equal(second.previousVersion, version);
   fs.writeFileSync(path.join(target, '.portal-console-install.json'), JSON.stringify({ schemaVersion: 1, appId: build.appId, method: 'windows-nsis', version }));
   assert.throws(() => install(path.resolve('installer/install.ps1'), payload, target, log), /windows-nsis/);
+  fs.writeFileSync(path.join(target, '.portal-console-install.json'), JSON.stringify(second));
+  const removed = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('installer/uninstall.ps1'),
+    '-InstallDir', target, '-LogDir', log, '-SkipEnvironment'], { encoding: 'utf8' });
+  assert.equal(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+  assert.equal(fs.existsSync(target), false);
+  assert.equal(fs.existsSync(log), true);
+  assert.equal(fs.readFileSync(userConfig, 'utf8'), '{"preserved":true}');
   console.log('Legacy release-0929 layout and recorded Windows simple-installer updates verified');
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
