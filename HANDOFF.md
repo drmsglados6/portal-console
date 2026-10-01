@@ -118,11 +118,15 @@ If node-pty fails only in the packaged app, inspect `resources/app.asar.unpacked
 - Hardware acceleration defaults off after a reported full-machine freeze. Software mode disables scanlines and cursor blink.
 - Portal ending audio has unusually strong bass around the chorus; current defaults use quadratic volume and a `-8 dB` 200 Hz low shelf.
 - Each app window runs in its own Electron process with independent PTY sessions; use + WINDOW or Ctrl+Shift+N to launch another.
-- macOS and Ubuntu packages have not yet been built on target systems.
+- Windows x64, Ubuntu x64, and macOS x64/arm64 packages were built on their respective GitHub-hosted runners. Packaged Electron successfully loaded sharp and launched a PTY on each platform. Interactive GUI checks on user machines remain to be done.
 - Application icons and code signing are not configured.
 - Diagnostics normally go to `%APPDATA%\portal-console\logs\diagnostics.log` or `PORTAL_CONSOLE_LOG_DIR`.
 
 ## Important Files
+
+- `.github/workflows/build.yml`: cross-platform builds, artifacts, and tagged releases
+- `scripts/check-packaged.js`: native dependency smoke check with packaged Electron
+- `TODO.md`: remaining work, including Ctrl+C reproduction and other-session integration
 
 - `README.md`: user-facing setup and controls
 - `portal-console.example.json`: configuration example
@@ -131,3 +135,10 @@ If node-pty fails only in the packaged app, inspect `resources/app.asar.unpacked
 - `src/ending-state.js`: deterministic timeline state
 - `src/renderer/renderer.js`: GUI and ending playback
 - `src/headless.js`: ANSI frontend
+
+## CI Verification (2026-10-01)
+
+All four build jobs passed: <https://github.com/drmsglados6/portal-console/actions/runs/36815360458>.
+Artifacts are retained for 14 days. Main/PR builds skip documentation-only changes; manual runs remain available. Tag pushes matching `v*` also publish a GitHub Release after all builds pass; that release step has not yet been exercised with a tag.
+
+Linux packaging now supplies Debian maintainer/homepage metadata and unpacks `@img` native libraries so libvips is available outside ASAR.

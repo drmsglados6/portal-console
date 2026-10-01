@@ -111,7 +111,7 @@ Ubuntu 24.04以降では `libasound2` の代わりに `libasound2t64` を指定�
 
 ### CI/CD
 
-GitHub Actionsの **Build and release** はmainへのpush、pull request、手動実行、`v*`タグのpushで動作します。
+GitHub Actionsの **Build and release** はmainへのpush、pull request、手動実行、`v*`タグのpushで動作します。Markdown文書だけの変更は自動ビルドを省略します。
 
 | 対象 | ランナー | 成果物 |
 | --- | --- | --- |
