@@ -1,0 +1,36 @@
+node_modules/
+dist/
+deprecated/
+release/
+release-safe/
+release-ending/
+release-current/
+release-preset/
+release-preset-final/
+release-preset-exit/
+release-0925/
+release-0926/
+release-0929/
+*.log
+
+# Build outputs and local application data
+release-*/
+development-logs/
+logs/
+presets/
+config.json
+portal-console.local.json
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+
+# OS metadata
+.DS_Store
+Thumbs.db

@@ -1,0 +1,64 @@
+{
+  "mode": "modern",
+  "fullscreen": true,
+  "consoles": {
+    "default": "powershell",
+    "profiles": {
+      "cygwin-custom": {
+        "command": "C:\\cygwin64\\bin\\bash.exe",
+        "args": ["--login", "-i"],
+        "cwd": "~"
+      },
+      "project-shell": {
+        "command": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "args": ["-NoLogo"],
+        "cwd": "C:\\src"
+      }
+    }
+  },
+  "original": {
+    "consoles": {
+      "main": "powershell",
+      "aux": "cmd"
+    }
+  },
+  "logo": {
+    "source": null,
+    "characters": " .:-=+*#%@",
+    "invert": false,
+    "characterAspectRatio": 0.6
+  },
+  "appearance": {
+    "fontSize": 15,
+    "minimumFontSize": 8,
+    "maximumFontSize": 32,
+    "fontSizeStep": 1,
+    "hardwareAcceleration": false,
+    "mouseWheelMode": "local"
+  },
+  "ending": {
+    "source": "auto",
+    "scene": null,
+    "portalPath": null,
+    "playAudio": true,
+    "volume": 0.1,
+    "volumeCurve": "quadratic",
+    "bassGainDb": -8,
+    "compressor": false,
+    "seekStepMs": 5000
+  },
+  "modern": {
+    "columns": ["2fr", "1fr", "1fr"],
+    "rows": ["1fr", "1fr"],
+    "areas": [
+      "main aux logs",
+      "main monitor logs"
+    ],
+    "panes": [
+      { "id": "main", "title": "PRIMARY", "kind": "terminal", "console": "cygwin-custom" },
+      { "id": "aux", "title": "AUX", "kind": "terminal", "console": "cmd" },
+      { "id": "logs", "title": "LOGS", "kind": "terminal", "console": "project-shell" },
+      { "id": "monitor", "title": "TERTIARY", "kind": "terminal", "console": "powershell" }
+    ]
+  }
+}

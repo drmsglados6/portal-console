@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:; frame-src 'self' file: https: http:; media-src 'self' blob:">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Console</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main id="screen" class="screen" aria-label="Portal Console terminal workspace"></main>
+    <section id="ending-overlay" class="ending-overlay" aria-label="Ending credits playback" hidden>
+      <section class="ending-panel ending-left"><pre id="ending-left-text"></pre></section>
+      <section class="ending-panel ending-credits"><pre id="ending-credit-text"></pre></section>
+      <section class="ending-panel ending-art"><pre id="ending-art-text"></pre></section>
+    </section>
+    <dialog id="preset-dialog" class="preset-dialog">
+      <form id="preset-form">
+        <h2>SELECT WINDOWS TO CLOSE</h2>
+        <p id="preset-options"></p>
+        <label>Window numbers (comma separated) <input id="preset-selection" autocomplete="off" required></label>
+        <p id="preset-preview" aria-live="polite"></p>
+        <p id="preset-error" role="alert"></p>
+        <div class="preset-actions"><button type="button" id="preset-cancel">CANCEL</button><button type="submit">APPLY</button></div>
+      </form>
+    </dialog>
+    <dialog id="help-dialog" class="preset-dialog" aria-label="Portal Console help">
+      <h2>PORTAL CONSOLE HELP</h2>
+      <p><code>portal-help</code> — display this help</p>
+      <p><code>portal-preset NAME</code> — switch the modern layout (for example <code>3x2</code> or <code>5+2</code>)</p>
+      <p><code>portal-exit</code> — quit Portal Console</p>
+      <p id="help-selection"></p>
+      <p id="help-presets"></p>
+      <p>F2 / Ctrl+Shift+2: original &nbsp; F3 / Ctrl+Shift+3: modern &nbsp; Ctrl+Shift+N: new window</p>
+      <div class="preset-actions"><button type="button" id="help-close">CLOSE</button></div>
+    </dialog>
+    <dialog id="replace-dialog" class="preset-dialog" aria-label="Replace panes">
+      <h2>REPLACE WINDOWS</h2><p id="replace-message"></p>
+      <div class="preset-actions"><button id="replace-cancel" type="button">CANCEL</button><button id="replace-confirm" type="button">REPLACE</button></div>
+    </dialog>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div id="mode-indicator" class="mode-indicator" aria-live="polite"></div>
+    <div id="shortcut-hint" class="shortcut-hint">CTRL+SHIFT+P COMMAND &nbsp; CTRL+1 PRIMARY &nbsp; CTRL+2 AUX &nbsp; CTRL+TAB NEXT &nbsp; CTRL+SHIFT+N NEW WINDOW &nbsp; CTRL+SHIFT+2/3 LAYOUT</div>
+    <nav id="layout-switch" class="layout-switch" aria-label="Window and layout controls">
+      <button type="button" data-layout="original" aria-pressed="false">ORIGINAL</button>
+      <button type="button" data-layout="modern" aria-pressed="false">MODERN</button>
+      <button type="button" id="new-window-button">+ WINDOW</button>
+    </nav>
+    <script src="renderer.js"></script>
+  </body>
+</html>

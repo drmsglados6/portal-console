@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "title": "APERTURE TERMINAL EVALUATION",
+  "color": "#ffb600",
+  "durationMs": 42000,
+  "left": [
+    { "at": 0, "type": "clear" },
+    { "at": 250, "type": "type", "durationMs": 1800, "text": "APERTURE TERMINAL EVALUATION FORM\n\n" },
+    { "at": 2600, "type": "type", "durationMs": 2600, "text": "Subject: console operator\nStatus: still connected\n\n" },
+    { "at": 6200, "type": "type", "durationMs": 3600, "text": "The test produced useful data.\nThe signal crossed every chamber.\n" },
+    { "at": 10800, "type": "type", "durationMs": 3400, "text": "No packets were misplaced.\nThat is worth recording.\n" },
+    { "at": 15500, "type": "clear" },
+    { "at": 15800, "type": "type", "durationMs": 1700, "text": "PERSONNEL ADDENDUM\n\n" },
+    { "at": 18200, "type": "type", "durationMs": 3900, "text": "Your terminal remains operational.\nYour cursor remains optimistic.\n" },
+    { "at": 23200, "type": "type", "durationMs": 4300, "text": "Please retain this successful result\nfor all future experiments.\n" },
+    { "at": 29200, "type": "clear" },
+    { "at": 29600, "type": "type", "durationMs": 2100, "text": "FINAL TRANSMISSION\n\n" },
+    { "at": 32500, "type": "type", "durationMs": 5200, "text": "Thank you for keeping the system alive.\nScience continues after logout.\n" }
+  ],
+  "credits": [
+    { "at": 500, "durationMs": 1100, "text": "PORTAL CONSOLE" },
+    { "at": 2100, "durationMs": 900, "text": "" },
+    { "at": 3200, "durationMs": 1200, "text": "SYSTEM DESIGN" },
+    { "at": 4700, "durationMs": 1500, "text": "THE OPERATOR" },
+    { "at": 6800, "durationMs": 1300, "text": "TERMINAL ENGINEERING" },
+    { "at": 8400, "durationMs": 1700, "text": "HUMANS AND MACHINES" },
+    { "at": 10900, "durationMs": 1200, "text": "ASCII RESEARCH" },
+    { "at": 12500, "durationMs": 1400, "text": "MONOSPACE LABS" },
+    { "at": 14800, "durationMs": 1200, "text": "SIGNAL PROCESSING" },
+    { "at": 16500, "durationMs": 1500, "text": "A VERY SMALL CURSOR" },
+    { "at": 19100, "durationMs": 1100, "text": "QUALITY ASSURANCE" },
+    { "at": 20600, "durationMs": 1600, "text": "ALL AVAILABLE TEST SUBJECTS" },
+    { "at": 23400, "durationMs": 1200, "text": "SPECIAL THANKS" },
+    { "at": 25000, "durationMs": 1600, "text": "THE OPEN SOURCE COMMUNITY" },
+    { "at": 27900, "durationMs": 900, "text": "" },
+    { "at": 29600, "durationMs": 1800, "text": "TRANSMISSION COMPLETE" },
+    { "at": 32600, "durationMs": 2100, "text": "THANK YOU FOR PARTICIPATING" }
+  ],
+  "frames": {
+    "atom": "            o            \n                         \n      o  .--------- .  o \n        /    .-.      \\  \n   o---|----( + )-----|---o\n        \\    `-'      /  \n      o  `--------- '  o \n                         \n            o",
+    "signal": "       /\\       /\\       \n      /  \\     /  \\      \n ____/    \\___/    \\____ \n                         \n ____      _____      ____ \n     \\    /     \\    /     \n      \\__/       \\__/",
+    "check": "                         \n                    ##   \n                 ###     \n              ###        \n   ##      ####           \n    ###  ###              \n      ###                 \n                         ",
+    "terminal": "+----------------------+\n| C:\\> science --run   |\n| DATA: ACCEPTED       |\n| RESULT: CONTINUE     |\n| _                    |\n+----------------------+"
+  },
+  "art": [
+    { "at": 0, "frame": "$logo" },
+    { "at": 7200, "frame": "atom" },
+    { "at": 13800, "frame": "signal" },
+    { "at": 21400, "frame": "check" },
+    { "at": 28600, "frame": "terminal" },
+    { "at": 35400, "frame": "$logo" }
+  ]
+}
