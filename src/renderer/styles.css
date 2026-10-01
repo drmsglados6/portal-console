@@ -82,6 +82,15 @@ body {
 
 .preset-dialog::backdrop { background: #000b; }
 .preset-dialog h2 { font-size: 16px; }
+#help-dialog { width: min(760px, 90vw); max-height: 85vh; overflow-y: auto; }
+#help-content h3 { font-size: 13px; color: var(--orange); margin-top: 22px; }
+#help-content dl { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr; gap: 10px 16px; }
+#help-content dt { color: var(--orange); overflow-wrap: anywhere; }
+#help-content dd { margin: 0; line-height: 1.4; }
+@media (max-width: 560px) {
+  #help-content dl { grid-template-columns: 1fr; gap: 6px; }
+  #help-content dd { margin-bottom: 10px; }
+}
 .preset-dialog label { display: block; }
 .preset-dialog input { display: block; margin: 12px 0; padding: 8px; width: 100%; background: #050301; color: var(--orange-bright); border: 1px solid var(--orange); font: inherit; }
 .preset-dialog button { padding: 8px 16px; background: #1a0b02; color: var(--orange-bright); border: 1px solid var(--orange); font: inherit; cursor: pointer; }

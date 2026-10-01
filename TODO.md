@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] v0.1.4の前ペイン移動・ペイン単独再起動・共通ヘルプをTTY／GUIで検証し、w3m推奨依存とともに配布する。
 - [x] インストール方式の記録と旧版更新を検証する（Windows release-0929簡易版の構成、NSIS、実際のUbuntu 0.1.0.deb、macOS旧app/dmg/zip、AppImage）。v0.1.3として配布済み。
 - [x] cool-retro-termを参考にしたCRT効果の初期実装（グロー、静的走査線、周辺減光、ガラスハイライト、設定UI）をWindows・UbuntuのGUIと各OSのビルドで検証する。
 - [ ] CRTの画面歪み・残光・動的ノイズを検討し、描画負荷と入力座標への影響を確認する。

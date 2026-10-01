@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.3` (latest tagged release: `0.1.3`)
+- Source version: `0.1.4` (latest tagged release: `0.1.3`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -172,3 +172,12 @@ All update checks and release publication passed: <https://github.com/drmsglados
 Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.3> (includes CRT effects and `install-unix.sh`). Ubuntu checks also launched `/usr/bin/portal-console` in headless mode after upgrading the actual legacy deb. Mac checks covered unrecorded `.app` → dmg → zip.
 
 For the user's release-0929 Windows installation, use the new simple-installer ZIP and close the running app first. For the user's Ubuntu 0.1.0 package, use `sudo apt install ./portal-console-0.1.3-linux-amd64.deb`.
+
+## Navigation and Shared Help (0.1.4)
+
+- Headless Ctrl+B n/p selects next/previous terminal (case-insensitive); 1..9 selects numbered terminals; Ctrl+B r restarts just the selected pane.
+- `portal-restart` works in GUI and headless shells. It stops the current pane's programs; other pane sessions continue.
+- `src/help.js` provides frontend-specific comprehensive help. Headless help is a scrollable full-screen overlay opened with portal-help or Ctrl+B ?/h. GUI help is a scrollable dialog also opened with F1/Ctrl+Shift+H without interrupting foreground programs.
+- `src/headless-input.js` handles Ctrl+B keys split across or coalesced into stdin chunks.
+- deb recommends w3m. macOS instructions use Homebrew; Windows instructions use MSYS2/Cygwin/WSL. SSH requires w3m on the destination host.
+- The simple uninstaller now retries transient file locks and removes environment registration only after application removal succeeds.

@@ -5,6 +5,7 @@ const { portalCommandInput } = require('../portal-command');
 const { remapPreset } = require('../preset-switch');
 const { selectWindowNumbers } = require('../window-selection');
 const { wheelScrollHandler } = require('../wheel-scroll');
+const { helpSections } = require('../help');
 
 const screen = document.querySelector('#screen');
 const modeIndicator = document.querySelector('#mode-indicator');
@@ -93,9 +94,24 @@ function showStatus(message) {
   }, 6000);
 }
 
-function showHelp(sourceId) {
+function showHelp(sourceId, cancelInput = true) {
   if (helpDialog.open) return;
-  window.portalConsole.write(sourceId, '\x03');
+  if (cancelInput) window.portalConsole.write(sourceId, '\x03');
+  const content = document.querySelector('#help-content');
+  content.replaceChildren();
+  for (const section of helpSections('gui', config)) {
+    const heading = document.createElement('h3');
+    heading.textContent = section.title;
+    const list = document.createElement('dl');
+    for (const [key, text] of section.entries) {
+      const term = document.createElement('dt');
+      term.textContent = key;
+      const description = document.createElement('dd');
+      description.textContent = text;
+      list.append(term, description);
+    }
+    content.append(heading, list);
+  }
   document.querySelector('#help-selection').textContent = config.controls.closeSelectionSyntax === 'regex'
     ? 'Close-window selection: full-match regular expression against window numbers.'
     : 'Close-window selection: 2,5 / 2-4 / !3 / !(2-4).';
@@ -104,16 +120,25 @@ function showHelp(sourceId) {
   window.portalConsole.presets().then((names) => {
     if (helpDialog.open) presetList.textContent = `Available presets: ${names.join(', ')}`;
   }).catch((error) => { presetList.textContent = `Presets unavailable: ${error.message}`; });
-  const close = () => helpDialog.close();
+  let restored = false;
+  const close = () => { helpDialog.close(); restore(); };
+  const cancel = (event) => { event.preventDefault(); close(); };
+  const closed = () => { if (!helpDialog.open) restore(); };
   const restore = () => {
+    if (restored) return;
+    restored = true;
     document.querySelector('#help-close').removeEventListener('click', close);
-    panes.get(sourceId)?.commandInput.reset();
+    helpDialog.removeEventListener('cancel', cancel);
+    helpDialog.removeEventListener('close', closed);
+    if (cancelInput) panes.get(sourceId)?.commandInput.reset();
     if (panes.get(sourceId)?.element.isConnected) focusPane(sourceId);
   };
   document.querySelector('#help-close').addEventListener('click', close);
-  helpDialog.addEventListener('close', restore, { once: true });
+  helpDialog.addEventListener('cancel', cancel);
+  helpDialog.addEventListener('close', closed);
   helpDialog.showModal();
-  document.querySelector('#help-close').focus();
+  helpDialog.scrollTop = 0;
+  document.querySelector('#help-close').focus({ preventScroll: true });
 }
 
 function chooseWindowsToClose(specs, count) {
@@ -402,6 +427,7 @@ async function terminalElement(spec) {
     if (command?.type === 'exit') window.portalConsole.quit();
     else if (command?.type === 'preset') switchPreset(command.name, spec.id);
     else if (command?.type === 'help') showHelp(spec.id);
+    else if (command?.type === 'restart') { focusPane(spec.id); restartFocusedTerminal(); }
     else window.portalConsole.write(spec.id, data);
   });
   pane.addEventListener('pointerdown', () => focusPane(spec.id));
@@ -541,7 +567,7 @@ function setCommandMode(value, message = '') {
   commandMode = value;
   document.body.classList.toggle('command-mode', commandMode);
   modeIndicator.textContent = commandMode
-    ? `-- COMMAND --  ${message || 'E ENDING   R RESTART   G CRT   H/L SELECT   ESC/I TERMINAL'}`
+    ? `-- COMMAND --  ${message || 'E ENDING   R RESTART   G CRT   H/L SELECT   ? HELP   ESC/I TERMINAL'}`
     : '';
   if (!commandMode) panes.get(focusedId)?.terminal.focus();
 }
@@ -789,7 +815,8 @@ function bindKeys() {
   window.addEventListener('keydown', (event) => {
     if (presetDialog.open || helpDialog.open || replaceDialog.open || crtDialog.open) return;
     let handled = true;
-    if (endingPlayback && event.code === 'Space') pauseEndingPlayback();
+    if (event.key === 'F1' || event.ctrlKey && event.shiftKey && event.code === 'KeyH') showHelp(focusedId, false);
+    else if (endingPlayback && event.code === 'Space') pauseEndingPlayback();
     else if (endingPlayback && (event.key === 'Escape' || event.key.toLowerCase() === 'q')) stopEndingPlayback();
     else if (endingPlayback && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
       const step = event.shiftKey ? 0.01 : event.ctrlKey ? 0.05 : 0.1;
@@ -811,6 +838,7 @@ function bindKeys() {
     else if (commandMode && (event.key === 'Escape' || event.key.toLowerCase() === 'i')) setCommandMode(false);
     else if (commandMode && event.key.toLowerCase() === 'r') restartFocusedTerminal();
     else if (commandMode && event.key.toLowerCase() === 'g') toggleCrt();
+    else if (commandMode && event.key === '?') showHelp(focusedId, false);
     else if (commandMode && event.key.toLowerCase() === 'e') startEndingPlayback();
     else if (commandMode && ['h', 'k'].includes(event.key.toLowerCase())) cycleFocus(true);
     else if (commandMode && ['j', 'l'].includes(event.key.toLowerCase())) cycleFocus(false);

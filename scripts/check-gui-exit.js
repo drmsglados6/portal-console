@@ -32,6 +32,7 @@ async function run() {
   const checkNewWindow = process.argv.includes('--new-window');
   const checkRegex = process.argv.includes('--regex');
   const checkCrt = process.argv.includes('--crt');
+  const checkHelp = process.argv.includes('--help');
   const sourceId = process.argv.includes('--third') ? 'third' : 'main';
   const port = await availablePort();
   const electron = require('electron');
@@ -153,6 +154,35 @@ async function run() {
         type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r'
       } }));
     };
+    if (checkHelp) {
+      await typeKeys('portal-help');
+      let help;
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        help = await send('Runtime.evaluate', { expression: `({open:document.querySelector('#help-dialog').open,sections:document.querySelectorAll('#help-content h3').length,text:document.querySelector('#help-content').textContent})`, returnByValue: true });
+        if (help.result?.result?.value?.open) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const content = help.result?.result?.value;
+      if (!content?.open || content.sections < 7 || !content.text.includes('portal-restart') || !content.text.includes('Command mode R') || !content.text.includes('Ctrl+Shift+Tab')) throw new Error(`Incomplete GUI help: ${JSON.stringify(content)}`);
+      await send('Runtime.evaluate', { expression: `document.querySelector('#help-close').click()` });
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'F1', code: 'F1', windowsVirtualKeyCode: 112 });
+      const open = await send('Runtime.evaluate', { expression: `document.querySelector('#help-dialog').open` });
+      if (!open.result?.result?.value) throw new Error('F1 help failed');
+      await send('Runtime.evaluate', { expression: `document.querySelector('#help-close').click()` });
+      await typeKeys('portal-restart');
+      let restarted;
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        restarted = await send('Runtime.evaluate', { expression: `document.querySelector('#mode-indicator').textContent` });
+        if (restarted.result?.result?.value?.includes(' RESTARTED')) break;
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      if (!restarted.result?.result?.value?.includes(' RESTARTED')) {
+        const state = await send('Runtime.evaluate', { expression: `({focus:document.activeElement?.className,open:document.querySelector('#help-dialog').open,screen:document.querySelector('[data-pane=main] .xterm-rows')?.textContent})`, returnByValue: true });
+        throw new Error(`portal-restart failed: ${JSON.stringify(restarted)} state=${JSON.stringify(state)} writes=${writes.slice(-2500)}`);
+      }
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      console.log('Comprehensive GUI help, F1 and portal-restart verified');
+    }
     if (checkCrt) {
       const state = () => send('Runtime.evaluate', { expression: `({
         enabled: document.body.classList.contains('crt-enabled'),
@@ -421,7 +451,7 @@ async function run() {
       const refocused = await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=${sourceId}] .xterm-helper-textarea')?.focus(); document.activeElement?.closest('.pane')?.dataset.pane` });
       if (refocused.result?.result?.value !== sourceId) throw new Error(`Source pane lost focus: ${JSON.stringify(refocused)}`);
     }
-    if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow) await typeKeys('portal-exit');
+    if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkHelp || checkCrt) await typeKeys('portal-exit');
     else await enter('portal-exit');
     // The app may close before DevTools can acknowledge the Enter event.
     for (let attempt = 0; attempt < 80 && !exited; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 250));

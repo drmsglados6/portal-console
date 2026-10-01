@@ -26,14 +26,10 @@
     </dialog>
     <dialog id="help-dialog" class="preset-dialog" aria-label="Portal Console help">
       <h2>PORTAL CONSOLE HELP</h2>
-      <p><code>portal-help</code> — display this help</p>
-      <p><code>portal-preset NAME</code> — switch the modern layout (for example <code>3x2</code> or <code>5+2</code>)</p>
-      <p><code>portal-exit</code> — quit Portal Console</p>
+      <div class="preset-actions"><button type="button" id="help-close">CLOSE</button></div>
+      <div id="help-content"></div>
       <p id="help-selection"></p>
       <p id="help-presets"></p>
-      <p>F2 / Ctrl+Shift+2: original &nbsp; F3 / Ctrl+Shift+3: modern &nbsp; Ctrl+Shift+N: new window</p>
-      <p>CRT button: effect settings &nbsp; Command mode G: toggle CRT effects</p>
-      <div class="preset-actions"><button type="button" id="help-close">CLOSE</button></div>
     </dialog>
     <dialog id="replace-dialog" class="preset-dialog" aria-label="Replace panes">
       <h2>REPLACE WINDOWS</h2><p id="replace-message"></p>

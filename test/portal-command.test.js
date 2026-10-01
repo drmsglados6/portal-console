@@ -69,6 +69,11 @@ test('portal-help is an internal command', () => {
   assert.deepEqual(portalCommandInput()('portal-help\r'), { type: 'help' });
 });
 
+test('portal-restart is recognized only as a standalone command', () => {
+  assert.deepEqual(portalCommandInput()('portal-restart\r'), { type: 'restart' });
+  assert.equal(portalCommandInput()('echo portal-restart\r'), null);
+});
+
 test('switching to fewer panes keeps the selected survivors in order', () => {
   const current = MODERN_PRESETS['3x2'];
   const target = generatePreset(2, 2);

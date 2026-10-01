@@ -7,6 +7,8 @@ const { prepareScene, sceneState } = require('./ending-state');
 const { importPortalCredits } = require('./portal-import');
 const { refreshEnvironment, resolveConsole, spawnOptions } = require('./shell');
 const { portalCommandInput } = require('./portal-command');
+const { helpSections, helpLines } = require('./help');
+const { headlessInput } = require('./headless-input');
 
 const ESC = '\x1b[';
 const ORANGE = `${ESC}38;2;255;157;32m`;
@@ -98,7 +100,8 @@ async function run(argv = []) {
   const config = loadConfig(argv.filter((arg) => arg !== '--headless'));
   const panes = new Map();
   let focusedId;
-  let prefix = false;
+  const decodeInput = headlessInput();
+  let help = null;
   let commandMode = false;
   let commandStatus = '';
   let endingScene;
@@ -227,10 +230,25 @@ async function run(argv = []) {
     scheduled = true;
     setTimeout(() => {
       scheduled = false;
+      if (closed) return;
       let output = `${ESC}?25l${ESC}2J`;
+      if (help) {
+        const width = Math.max(1, process.stdout.columns || 80);
+        const height = Math.max(1, (process.stdout.rows || 24) - 2);
+        const lines = helpLines(helpSections('headless', config), width);
+        help.offset = Math.max(0, Math.min(help.offset, Math.max(0, lines.length - height)));
+        output += `${ORANGE}${ESC}1;1HPORTAL CONSOLE HELP`;
+        lines.slice(help.offset, help.offset + height).forEach((line, index) => {
+          output += `${ORANGE}${ESC}${index + 2};1H${line}`;
+        });
+        const footer = `HELP ${help.offset + 1}/${lines.length}  UP/DOWN SCROLL  PGUP/PGDN PAGE  Q/ESC RETURN`;
+        output += `${DIM}${ESC}${process.stdout.rows || 24};1H${footer.slice(0, width)}`;
+        process.stdout.write(output + RESET);
+        return;
+      }
       const ending = endingPlayback ? sceneState(endingScene, endingTime()) : null;
       for (const pane of panes.values()) {
-        output += frame(pane.rect, pane.spec.title || pane.spec.id, pane.spec.id === focusedId);
+        output += frame(pane.rect, `${pane.number ? `${pane.number}: ` : ''}${pane.spec.title || pane.spec.id}`, pane.spec.id === focusedId);
         if (ending) {
           if (pane.spec.id === 'main') output += sceneText(pane.rect, ending.left);
           else if (pane.spec.id === 'aux') output += sceneText(pane.rect, ending.credits, true);
@@ -247,7 +265,7 @@ async function run(argv = []) {
         const status = `-- PLAYBACK -- ${Math.floor(endingTime() / 1000)}/${Math.ceil(endingScene.durationMs / 1000)}s  SPACE PAUSE  H/L SEEK  Q STOP`;
         output += `${ORANGE}${ESC}${process.stdout.rows || 24};1H${status.slice(0, process.stdout.columns || 80)}`;
       } else if (commandMode) {
-        const status = `-- COMMAND -- ${commandStatus || 'R RESTART  H/L SELECT  ESC/I TERMINAL'}`;
+        const status = `-- COMMAND -- ${commandStatus || 'R RESTART  H/L SELECT  ? HELP  ESC/I TERMINAL'}`;
         output += `${ORANGE}${ESC}${process.stdout.rows || 24};1H${status.slice(0, process.stdout.columns || 80)}`;
       } else if (focused?.term) {
         const buffer = focused.term.buffer.active;
@@ -262,9 +280,22 @@ async function run(argv = []) {
     draw();
   }
 
+  function cycleFocus(offset) {
+    const terminals = [...panes.values()].filter((pane) => pane.term);
+    if (!terminals.length) return;
+    const current = terminals.findIndex((pane) => pane.spec.id === focusedId);
+    focus(terminals[(current + offset + terminals.length) % terminals.length]?.spec.id);
+  }
+
+  function showHelp() {
+    help = { offset: 0 };
+    draw();
+  }
+
   function cleanup(code = 0) {
     if (closed) return;
     closed = true;
+    clearTimeout(endingTimer);
     for (const pane of panes.values()) pane.child?.kill();
     process.stdin.setRawMode(false);
     process.stdin.pause();
@@ -299,6 +330,7 @@ async function run(argv = []) {
     try {
       await refreshEnvironment(true);
       pane.term.reset();
+      pane.commandInput.reset();
       startPane(pane);
       commandStatus = `${pane.spec.title} RESTARTED`;
     } catch (error) {
@@ -310,9 +342,11 @@ async function run(argv = []) {
   }
 
   await refreshEnvironment();
+  let terminalNumber = 0;
   for (const spec of specs) {
     const pane = { spec, rect: { x: 0, y: 0, width: 20, height: 10 }, cols: 18, rows: 8 };
     if (spec.kind === 'terminal') {
+      pane.number = ++terminalNumber;
       pane.commandInput = portalCommandInput();
       pane.term = new Terminal({ cols: pane.cols, rows: pane.rows, scrollback: 1000, allowProposedApi: true });
       startPane(pane);
@@ -324,9 +358,34 @@ async function run(argv = []) {
   process.stdout.write(`${ESC}?1049h${ESC}?7l${ESC}2J`);
   process.stdin.setRawMode(true);
   process.stdin.resume();
-  process.stdin.on('data', (chunk) => {
-    const data = chunk.toString('utf8');
+  function handleInput(data, isPrefix = false) {
     const terminals = [...panes.values()].filter((pane) => pane.term);
+    if (isPrefix) {
+      const key = data.toLowerCase();
+      if (key === 'q') cleanup();
+      else if (key === '?' || key === 'h') showHelp();
+      else if (help || endingPlayback) return;
+      else if (/^[1-9]$/.test(data)) focus(terminals[Number(data) - 1]?.spec.id);
+      else if (key === 'n') cycleFocus(1);
+      else if (key === 'p') cycleFocus(-1);
+      else if (key === 'c') { commandMode = true; commandStatus = ''; draw(); }
+      else if (key === 'r') { commandMode = true; restartFocused(); }
+      else if (data === '\x02') panes.get(focusedId)?.child?.write(data);
+      return;
+    }
+    if (help) {
+      const key = data.toLowerCase();
+      const page = Math.max(1, (process.stdout.rows || 24) - 2);
+      if (data === '\x1b' || data === '\r' || data === '\n' || key === 'q') help = null;
+      else if (data === '\x1b[A' || key === 'k') help.offset -= 1;
+      else if (data === '\x1b[B' || key === 'j') help.offset += 1;
+      else if (data === '\x1b[5~' || key === 'b') help.offset -= page;
+      else if (data === '\x1b[6~' || key === 'f' || data === ' ') help.offset += page;
+      else if (data === 'G' || data === '\x1b[F') help.offset = Number.MAX_SAFE_INTEGER;
+      else if (data === 'g' || data === '\x1b[H') help.offset = 0;
+      draw();
+      return;
+    }
     if (endingPlayback) {
       if (data === ' ' ) {
         if (endingPlayback.paused) {
@@ -350,45 +409,44 @@ async function run(argv = []) {
         commandMode = false;
         commandStatus = '';
       } else if (data.toLowerCase() === 'r') restartFocused();
+      else if (data === '?') showHelp();
       else if (data.toLowerCase() === 'e') startEnding();
       else if (['h', 'k'].includes(data.toLowerCase())) {
-        const current = terminals.findIndex((pane) => pane.spec.id === focusedId);
-        focus(terminals[(current - 1 + terminals.length) % terminals.length]?.spec.id);
+        cycleFocus(-1);
       } else if (['j', 'l'].includes(data.toLowerCase())) {
-        const current = terminals.findIndex((pane) => pane.spec.id === focusedId);
-        focus(terminals[(current + 1) % terminals.length]?.spec.id);
+        cycleFocus(1);
       }
       draw();
       return;
     }
-    if (prefix) {
-      prefix = false;
-      if (data === '1') focus(terminals[0]?.spec.id);
-      else if (data === '2') focus(terminals[1]?.spec.id);
-      else if (data === 'n') {
-        const current = terminals.findIndex((pane) => pane.spec.id === focusedId);
-        focus(terminals[(current + 1) % terminals.length]?.spec.id);
-      } else if (data === 'c') {
-        commandMode = true;
-        draw();
-      } else if (data === 'q') cleanup();
-      else if (data === '\x02') panes.get(focusedId)?.child?.write(data);
-      return;
-    }
-    if (data === '\x02') prefix = true;
-    else {
-      const pane = panes.get(focusedId);
-      const command = pane?.commandInput?.(data);
-      if (command?.type === 'exit') cleanup();
-      else if (command?.type === 'help' || command?.type === 'preset') {
-        pane.child?.write('\x03');
-        pane.commandInput.reset();
-        commandMode = true;
-        commandStatus = command.type === 'help'
-          ? 'PORTAL-HELP: PORTAL-EXIT QUIT  PORTAL-PRESET GUI ONLY  CTRL+B C COMMAND  ESC RETURN'
-          : 'LIVE PRESET SWITCHING IS AVAILABLE IN THE GUI VERSION';
-        draw();
-      } else pane?.child?.write(data);
+    const pane = panes.get(focusedId);
+    const command = pane?.commandInput?.(data);
+    if (command?.type === 'exit') cleanup();
+    else if (command?.type === 'restart') { commandMode = true; restartFocused(); }
+    else if (command?.type === 'help') {
+      pane.child?.write('\x03');
+      pane.commandInput.reset();
+      showHelp();
+    } else if (command?.type === 'preset') {
+      pane.child?.write('\x03');
+      pane.commandInput.reset();
+      commandMode = true;
+      commandStatus = 'LIVE PRESET SWITCHING IS GUI ONLY; START WITH --preset NAME. ? HELP';
+      draw();
+    } else pane?.child?.write(data);
+  }
+  process.stdin.on('data', (chunk) => {
+    for (const token of decodeInput(chunk.toString('utf8'))) {
+      if (closed) break;
+      if (token.type === 'prefix') { handleInput(token.key, true); continue; }
+      let remaining = token.data;
+      // Mode keys can also arrive together (e.g. Esc followed by shell input).
+      while (remaining && !closed && (help || commandMode || endingPlayback)) {
+        const key = /^(?:\x1b\[[0-?]*[ -/]*[@-~]|\x1bO.|[\s\S])/.exec(remaining)[0];
+        handleInput(key);
+        remaining = remaining.slice(key.length);
+      }
+      if (remaining && !closed) handleInput(remaining);
     }
   });
   process.stdout.on('resize', resize);

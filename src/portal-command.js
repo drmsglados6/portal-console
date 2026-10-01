@@ -27,6 +27,7 @@ function portalCommandInput() {
       if (character === '\r' || character === '\n') {
         const command = !escaped && (line === 'portal-exit' ? { type: 'exit' }
           : line === 'portal-help' ? { type: 'help' }
+          : line === 'portal-restart' ? { type: 'restart' }
           : /^portal-preset\s+(\S+)$/.test(line) ? { type: 'preset', name: line.match(/^portal-preset\s+(\S+)$/)[1] } : null);
         line = '';
         escaped = false;
