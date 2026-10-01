@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] インストール方式の記録と旧版更新を検証する（Windows release-0929簡易版、NSIS、Ubuntu 0.1.0.deb、macOS、AppImage）。
+- [x] インストール方式の記録と旧版更新を検証する（Windows release-0929簡易版の構成、NSIS、実際のUbuntu 0.1.0.deb、macOS旧app/dmg/zip、AppImage）。v0.1.3として配布済み。
 - [x] cool-retro-termを参考にしたCRT効果の初期実装（グロー、静的走査線、周辺減光、ガラスハイライト、設定UI）をWindows・UbuntuのGUIと各OSのビルドで検証する。
 - [ ] CRTの画面歪み・残光・動的ノイズを検討し、描画負荷と入力座標への影響を確認する。
 - [ ] OpenCode等の代替画面でホイール入力が消える問題の修正をビルド・実機で確認する。

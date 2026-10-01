@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.3` (latest tagged release: `0.1.1`)
+- Source version: `0.1.3` (latest tagged release: `0.1.3`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -167,3 +167,8 @@ Installers write `.portal-console-install.json` at the application root with sch
 
 `installer/install-unix.sh` handles deb/AppImage and macOS app/dmg/zip updates. Manual Finder copies or portable file replacements do not execute installer hooks; GUI diagnostics report portable/AppImage or unrecorded installations when appropriate.
 CI checks cover simulated release-0929 layout updates, NSIS install/reinstall, the actual `v0.1.0` deb upgrade, and macOS/AppImage record-preserving updates. The original release-0929 script also has an optional local test via `node scripts/check-windows-update.js --actual-legacy`.
+
+All update checks and release publication passed: <https://github.com/drmsglados6/portal-console/actions/runs/36828306252>.
+Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.3> (includes CRT effects and `install-unix.sh`). Ubuntu checks also launched `/usr/bin/portal-console` in headless mode after upgrading the actual legacy deb. Mac checks covered unrecorded `.app` → dmg → zip.
+
+For the user's release-0929 Windows installation, use the new simple-installer ZIP and close the running app first. For the user's Ubuntu 0.1.0 package, use `sudo apt install ./portal-console-0.1.3-linux-amd64.deb`.
