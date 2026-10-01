@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Version: `0.1.0`
+- Version: `0.1.1`
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -142,3 +142,14 @@ All four build jobs passed: <https://github.com/drmsglados6/portal-console/actio
 Artifacts are retained for 14 days. Main/PR builds skip documentation-only changes; manual runs remain available. Tag pushes matching `v*` also publish a GitHub Release after all builds pass. The `v0.1.0` release successfully exercised this step and includes packages for all four targets: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.0>.
 
 Linux packaging now supplies Debian maintainer/homepage metadata and unpacks `@img` native libraries so libvips is available outside ASAR.
+
+## v0.1.1 Verification
+
+Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.1>.
+All build and release jobs passed: <https://github.com/drmsglados6/portal-console/actions/runs/36819292643>.
+
+- Linux packages launch headless mode explicitly with `--headless` and automatically without DISPLAY/WAYLAND_DISPLAY, using Electron's bundled Node runtime.
+- Interactive TTY tests passed on Ubuntu 22.04 and 24.04.
+- Ubuntu 24.04 GUI tests passed under Xvfb with GTK 3: three terminal panes initialized and the app closed cleanly without GLib-GObject assertions.
+- Alternate-buffer wheel events now reach xterm/application mouse handling. OpenCode-specific manual reproduction remains pending.
+- cool-retro-term visual effects are a future reference item in `TODO.md`; they are not part of this release.
