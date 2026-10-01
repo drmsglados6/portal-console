@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Version: `0.1.1`
+- Source version: `0.1.2` (latest tagged release: `0.1.1`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -115,7 +115,7 @@ If node-pty fails only in the packaged app, inspect `resources/app.asar.unpacked
 ## Known Risks
 
 - This workspace is managed with Git. The GitHub repository is `drmsglados6/portal-console` (private).
-- Hardware acceleration defaults off after a reported full-machine freeze. Software mode disables scanlines and cursor blink.
+- Hardware acceleration defaults off after a reported full-machine freeze. Software mode disables cursor blink; the configurable static CRT effects work in software mode.
 - Portal ending audio has unusually strong bass around the chorus; current defaults use quadratic volume and a `-8 dB` 200 Hz low shelf.
 - Each app window runs in its own Electron process with independent PTY sessions; use + WINDOW or Ctrl+Shift+N to launch another.
 - Windows x64, Ubuntu x64, and macOS x64/arm64 packages were built on their respective GitHub-hosted runners. Packaged Electron successfully loaded sharp and launched a PTY on each platform. Interactive GUI checks on user machines remain to be done.
@@ -153,3 +153,10 @@ All build and release jobs passed: <https://github.com/drmsglados6/portal-consol
 - Ubuntu 24.04 GUI tests passed under Xvfb with GTK 3: three terminal panes initialized and the app closed cleanly without GLib-GObject assertions.
 - Alternate-buffer wheel events now reach xterm/application mouse handling. OpenCode-specific manual reproduction remains pending.
 - cool-retro-term visual effects are a future reference item in `TODO.md`; they are not part of this release.
+
+## CRT Implementation (0.1.2 Development)
+
+Static CSS glow, scanlines, vignette, and glass highlights are available through `appearance.crt`. The CRT button opens live controls; command mode `G` toggles all effects. Live changes are window-local; startup defaults are stored in the user's config.json.
+
+Windows GUI checks verified software-mode effects, ON/OFF, slider adjustments, command-mode toggling, and subsequent terminal input/exit. Ubuntu 24.04 GUI checks verified CRT rendering and toggling. All OS builds passed: <https://github.com/drmsglados6/portal-console/actions/runs/36823002780>.
+Development packages are available in that run's artifacts. No `v0.1.2` tag/release has been created yet. Screen distortion, phosphor persistence, and animated noise remain future work.
