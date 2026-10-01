@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.4` (latest tagged release: `0.1.3`)
+- Source version: `0.1.4` (latest tagged release: `0.1.4`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -181,3 +181,7 @@ For the user's release-0929 Windows installation, use the new simple-installer Z
 - `src/headless-input.js` handles Ctrl+B keys split across or coalesced into stdin chunks.
 - deb recommends w3m. macOS instructions use Homebrew; Windows instructions use MSYS2/Cygwin/WSL. SSH requires w3m on the destination host.
 - The simple uninstaller now retries transient file locks and removes environment registration only after application removal succeeds.
+
+All jobs and release publication passed: <https://github.com/drmsglados6/portal-console/actions/runs/36838236119>.
+Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.4>.
+TTY checks verified n/p (including uppercase/wrap), a changed PID only in the restarted pane, retained PID in another pane, paged help opened by prefix and portal-help, and clean exit. GUI checks verified comprehensive help, rapid close/reopen, F1, portal-restart, CRT controls and subsequent input/exit. The actual deb upgrade job also verified w3m is installed.
