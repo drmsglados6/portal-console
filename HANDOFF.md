@@ -139,6 +139,6 @@ If node-pty fails only in the packaged app, inspect `resources/app.asar.unpacked
 ## CI Verification (2026-10-01)
 
 All four build jobs passed: <https://github.com/drmsglados6/portal-console/actions/runs/36815360458>.
-Artifacts are retained for 14 days. Main/PR builds skip documentation-only changes; manual runs remain available. Tag pushes matching `v*` also publish a GitHub Release after all builds pass; that release step has not yet been exercised with a tag.
+Artifacts are retained for 14 days. Main/PR builds skip documentation-only changes; manual runs remain available. Tag pushes matching `v*` also publish a GitHub Release after all builds pass. The `v0.1.0` release successfully exercised this step and includes packages for all four targets: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.0>.
 
 Linux packaging now supplies Debian maintainer/homepage metadata and unpacks `@img` native libraries so libvips is available outside ASAR.

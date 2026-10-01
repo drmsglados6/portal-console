@@ -7,4 +7,4 @@
 - [x] 実行・開発・各OS向けビルドに必要なライブラリ／システム依存パッケージをREADMEに明記する。
 - [x] `github.com/drmsglados6` に Private の `portal-console` リポジトリを作成し、Git管理したプロジェクトを登録する。
 - [x] GitHub Actions で Windows x64・macOS x64/arm64・Ubuntu x64 向けビルドを実行し、同梱ネイティブ依存関係の動作と成果物アップロードを確認する。
-- [ ] 次回バージョンタグをpushする際に、設定済みのGitHub Release自動添付処理を実行して確認する。
+- [x] `v0.1.0`タグのpushでGitHub Release自動添付処理を実行し、全OSの成果物が添付されたことを確認する。
