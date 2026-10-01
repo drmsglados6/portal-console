@@ -33,6 +33,7 @@
     "appId": "science.aperture.portalconsole",
     "productName": "Portal Console",
     "executableName": "portal-console",
+    "artifactName": "portal-console-${version}-${os}-${arch}.${ext}",
     "npmRebuild": false,
     "directories": {
       "output": "release"
@@ -72,6 +73,12 @@
         "zip"
       ],
       "category": "public.app-category.utilities"
+    },
+    "nsis": {
+      "artifactName": "portal-console-${version}-win-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "portal-console-${version}-win-${arch}-portable.${ext}"
     },
     "win": {
       "target": [

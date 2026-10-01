@@ -1,0 +1,104 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            platform: win
+            arch: x64
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+          - runner: macos-15-intel
+            platform: mac
+            arch: x64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Linux build and runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 pkg-config dpkg fakeroot \
+            libgtk-3-0 libnss3 libasound2 libgbm1 libxss1 libatk-bridge2.0-0 \
+            libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
+            libpangocairo-1.0-0 libcups2
+      - run: npm ci
+      - run: npm test
+      - name: Build packages
+        shell: bash
+        run: npm run dist -- --${{ matrix.platform }} --${{ matrix.arch }} --publish never
+      - name: Verify packaged native dependencies
+        run: node scripts/check-packaged.js
+      - name: Bundle simple Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/package-installer.ps1 -ReleaseDirectory release
+          Compress-Archive -LiteralPath release/installer -DestinationPath release/portal-console-simple-installer-win-x64.zip
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-console-${{ matrix.platform }}-${{ matrix.arch }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
+
+  release:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: portal-console-*
+          merge-multiple: true
+          path: packages
+      - name: Create release and upload packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"
+          fi
+          gh release upload "$RELEASE_TAG" packages/* --clobber

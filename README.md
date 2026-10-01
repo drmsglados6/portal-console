@@ -61,7 +61,7 @@ npm start -- --preset 5-2
 Node.js 22 以降と npm が必要です。`node-pty` 1.1.0 の対象 OS/CPU 向け N-API プリビルドを利用します。プリビルドのない環境でソースビルドする場合は C/C++ ビルドツールが必要で、Windows では Visual Studio の Spectre 対応 MSVC ライブラリも必要です。
 
 ```sh
-npm install
+npm ci
 npm start
 ```
 
@@ -81,6 +81,48 @@ npm run dist
 ```
 
 Mac版はMac本体にソースを転送し、Mac上で `npm ci` の後に `npm run dist -- --mac --x64 --config.directories.output=release-0929`（Apple Siliconは `--arm64`）を実行します。生成したアプリ本体は `release-0929/mac/portal-console.app` です（表示名の `Portal Console.app` ではありません）。Mac用 `node-pty` のネイティブモジュールと `spawn-helper` は `portal-console.app/Contents/Resources/app.asar.unpacked/node_modules/node-pty/prebuilds/` に明示的に同梱し、補助実行ファイルへ実行権限を付けます。Mac側のアプリ起動前に、対象アーキテクチャの `spawn-helper` が存在することを確認してください。
+
+### Libraries and OS Dependencies
+
+`npm ci` は `package-lock.json` に固定したライブラリをインストールします。
+
+| ライブラリ | 用途 |
+| --- | --- |
+| Electron 43 | GUIとアプリ実行環境 |
+| xterm.js 6 / addon-fit / headless | ターミナル表示・サイズ調整・ANSI版 |
+| node-pty 1.1 | ネイティブPTYとシェル起動 |
+| sharp 0.35 | 画像のAA変換（libvipsは対応環境のnpmパッケージに同梱） |
+| vpk-tools | ローカルSteam Portalデータの読込 |
+| esbuild / electron-builder | フロントエンドと各OSの配布物生成 |
+
+- **Windows:** Windows 10/11とPowerShell。x64向けプリビルドを利用できます。ソースからネイティブモジュールをビルドする場合はPython 3、Visual Studio Build Toolsの「C++によるデスクトップ開発」、Windows SDK、Spectre対応MSVCライブラリが必要です。
+- **macOS:** Electron 43が対応するmacOS 12以降。Intel Macはx64、Apple Siliconはarm64でビルドします。開発用には `xcode-select --install` でCommand Line Toolsを導入してください。
+- **Debian/Ubuntu:** Linux版node-ptyはソースビルドが必要なためPython 3、make、GCC/G++が必要です。Ubuntu 22.04では次を導入します。
+
+```sh
+sudo apt update
+sudo apt install -y build-essential python3 pkg-config dpkg fakeroot \
+  libgtk-3-0 libnss3 libasound2 libgbm1 libxss1 libatk-bridge2.0-0 \
+  libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
+  libpangocairo-1.0-0 libcups2
+```
+
+Ubuntu 24.04以降では `libasound2` の代わりに `libasound2t64` を指定します。AppImageを直接起動する環境ではFUSE 2（22.04: `libfuse2`、24.04: `libfuse2t64`）も必要です。GUIはX11/Waylandのディスプレイ、ヘッドレス版は対話TTYを必要とします。OSを移すときは `node_modules` を共有せず、そのOS上で `npm ci` を実行してください。配布済みGUIアプリにはNode.jsを別途インストールする必要はありません。
+
+### CI/CD
+
+GitHub Actionsの **Build and release** はmainへのpush、pull request、手動実行、`v*`タグのpushで動作します。
+
+| 対象 | ランナー | 成果物 |
+| --- | --- | --- |
+| Windows x64 | windows-2022 | NSISインストーラ、portable EXE、簡易インストーラZIP |
+| Ubuntu x64 | ubuntu-22.04 | AppImage、deb |
+| macOS Intel | macos-15-intel | dmg、zip |
+| macOS Apple Silicon | macos-15 | dmg、zip |
+
+各ジョブは `npm ci` →テスト→パッケージ生成→同梱Electronでnode-ptyとsharpの動作確認を行います。Actionsの実行詳細から成果物を14日間取得できます。CI成果物は開発用の未署名ビルドです。正式な署名・macOS公証は別途設定が必要です。
+
+リリース時は `package.json` のバージョンに合わせた `v0.1.0` のようなタグをpushします。全OSのビルド成功後、そのタグのGitHub Releaseへ成果物を自動添付します。通常のpushや手動実行ではReleaseは作成しません。
 
 ### Simple Windows Installer
 
@@ -103,6 +145,18 @@ npm run installer:win
 Linux では AppImage/deb、macOS では dmg/zip、Windows では NSIS/portable が対象です。macOS と Windows の署名設定は配布者側で別途必要です。
 
 ## Key Bindings
+
+### Commands inside terminals
+
+GUI版では、各ターミナル内で次のコマンドを入力してEnterを押すとアプリを操作できます。外部実行ファイルのインストールやシェル側のエイリアス設定は不要です。
+
+| コマンド | 操作 |
+| --- | --- |
+| `portal-help` | 操作ヘルプを表示 |
+| `portal-preset <name>` | 起動中にレイアウトを変更（例: `portal-preset 3x2`、`portal-preset c1-2-1`） |
+| `portal-exit` | アプリ全体を終了 |
+
+シェルのプロンプトで入力してください。ヘッドレス版でも `portal-exit` を利用できます。`portal-help` はコマンドモードに案内を表示し、ライブプリセット変更はGUI版のみ対応します。
 
 ターミナル内で `portal-exit` と入力して Enter を押すと、Portal Console を終了できます。GUI版・ヘッドレス版のどちらでも利用できます。
 
