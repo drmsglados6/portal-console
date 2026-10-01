@@ -205,7 +205,6 @@ body.ending-mode .screen { visibility: hidden; }
 .media-toolbar button { color: var(--orange); background: var(--black); border: 1px solid var(--orange-dim); cursor: pointer; }
 .media-pane:has(.media-toolbar) .media-host { padding-top: 0; }
 .xterm-viewport { scrollbar-color: var(--orange-dim) transparent; }
-.software-rendering .scanlines { display: none; }
 
 .logo-pane {
   display: grid;
@@ -222,7 +221,6 @@ body.ending-mode .screen { visibility: hidden; }
   font: 11px/1 Consolas, "Liberation Mono", "Courier New", monospace;
   text-align: left;
   white-space: pre;
-  filter: drop-shadow(0 0 4px rgba(255, 134, 20, 0.72));
   user-select: none;
 }
 
@@ -231,7 +229,6 @@ body.ending-mode .screen { visibility: hidden; }
   align-items: center;
   gap: clamp(12px, 2vw, 30px);
   color: var(--orange-bright);
-  filter: drop-shadow(0 0 6px rgba(255, 134, 20, 0.58));
 }
 
 .aperture-mark {
@@ -258,22 +255,36 @@ body.ending-mode .screen { visibility: hidden; }
   letter-spacing: 0.34em;
 }
 
-.scanlines {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-  opacity: 0.2;
-  background: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0, 0, 0, 0.5) 3px, transparent 4px);
-}
-
-.scanlines::after {
+/* Static per-surface effects also work with software rendering. No animation,
+   backdrop blur, canvas copying, or transformed input coordinates are needed. */
+.crt-enabled :is(.terminal-pane, .logo-pane, .ending-panel)::before,
+.crt-enabled :is(.terminal-pane, .logo-pane, .ending-panel)::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 2.5% / 1.8%;
-  box-shadow: inset 0 0 110px rgba(0, 0, 0, 0.88), inset 0 0 12px rgba(255, 127, 12, 0.035);
+  z-index: 3;
+  pointer-events: none;
 }
+
+.crt-enabled :is(.terminal-pane, .logo-pane, .ending-panel)::before {
+  background: linear-gradient(125deg, rgba(255, 236, 200, var(--crt-glass)) 0%, transparent 28%, transparent 80%, rgba(255, 236, 200, calc(var(--crt-glass) * 0.3)) 100%);
+}
+
+.crt-enabled :is(.terminal-pane, .logo-pane, .ending-panel)::after {
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--crt-spacing) - 1px), rgba(0, 0, 0, var(--crt-scanlines)) calc(var(--crt-spacing) - 1px), rgba(0, 0, 0, var(--crt-scanlines)) var(--crt-spacing)),
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, var(--crt-vignette)) 100%);
+}
+
+.crt-enabled :is(.xterm-rows, .xterm-rows span, .ascii-logo, .aperture-name, .ending-panel pre) {
+  text-shadow: var(--crt-glow);
+}
+
+#crt-dialog { width: min(400px, 90vw); }
+#crt-dialog input[type="checkbox"] { display: inline-block; width: auto; margin-right: 8px; }
+#crt-dialog input[type="range"] { padding: 0; margin: 5px 0; accent-color: var(--orange); }
+#crt-dialog output { display: block; text-align: right; font-size: 12px; color: var(--orange-dim); }
+#crt-dialog p { max-width: 38ch; font-size: 12px; line-height: 1.4; }
 
 .shortcut-hint {
   position: fixed;
@@ -336,6 +347,5 @@ body.command-mode .pane.focused { border-color: var(--orange-bright); }
 body:hover .shortcut-hint { opacity: 0.8; }
 
 @media (prefers-reduced-motion: reduce) {
-  .scanlines { display: none; }
   .shortcut-hint { transition: none; }
 }

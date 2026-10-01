@@ -24,7 +24,8 @@ const DEFAULT_CONFIG = Object.freeze({
     maximumFontSize: 32,
     fontSizeStep: 1,
     hardwareAcceleration: false,
-    mouseWheelMode: 'local'
+    mouseWheelMode: 'local',
+    crt: { enabled: true, glow: 0.35, scanlines: 0.12, scanlineSpacing: 3, vignette: 0.3, glass: 0.12 }
   },
   controls: {
     closeSelectionSyntax: 'ranges'
@@ -215,6 +216,12 @@ function validate(config) {
   if (!(config.appearance.fontSizeStep > 0)) throw new Error('appearance.fontSizeStep must be positive');
   if (typeof config.appearance.hardwareAcceleration !== 'boolean') throw new Error('appearance.hardwareAcceleration must be a boolean');
   if (!['local', 'application'].includes(config.appearance.mouseWheelMode)) throw new Error('appearance.mouseWheelMode must be local or application');
+  const crt = config.appearance.crt;
+  if (!crt || typeof crt !== 'object' || Array.isArray(crt) || typeof crt.enabled !== 'boolean') throw new Error('appearance.crt requires an enabled boolean');
+  for (const key of ['glow', 'scanlines', 'vignette', 'glass']) {
+    if (!Number.isFinite(crt[key]) || crt[key] < 0 || crt[key] > 1) throw new Error(`appearance.crt.${key} must be between 0 and 1`);
+  }
+  if (!Number.isInteger(crt.scanlineSpacing) || crt.scanlineSpacing < 2 || crt.scanlineSpacing > 8) throw new Error('appearance.crt.scanlineSpacing must be an integer between 2 and 8');
   if (!['ranges', 'regex'].includes(config.controls?.closeSelectionSyntax)) throw new Error('controls.closeSelectionSyntax must be ranges or regex');
   if (!config.ending || (config.ending.scene !== null && typeof config.ending.scene !== 'string')) throw new Error('ending.scene must be a path or null');
   if (!['auto', 'portal', 'demo', 'scene'].includes(config.ending.source)) throw new Error('ending.source must be auto, portal, demo, or scene');
@@ -280,7 +287,12 @@ function loadConfig(argv = process.argv.slice(2)) {
     consoles: { ...DEFAULT_CONFIG.consoles, ...(stored.consoles || {}), profiles: { ...DEFAULT_CONFIG.consoles.profiles, ...(stored.consoles?.profiles || {}) } },
     original: { ...DEFAULT_CONFIG.original, ...(stored.original || {}), consoles: { ...DEFAULT_CONFIG.original.consoles, ...(stored.original?.consoles || {}) } },
     logo: { ...DEFAULT_CONFIG.logo, ...(stored.logo || {}) },
-    appearance: { ...DEFAULT_CONFIG.appearance, ...(stored.appearance || {}) },
+    appearance: {
+      ...DEFAULT_CONFIG.appearance, ...(stored.appearance || {}),
+      crt: stored.appearance?.crt === undefined ? { ...DEFAULT_CONFIG.appearance.crt }
+        : stored.appearance.crt && typeof stored.appearance.crt === 'object' && !Array.isArray(stored.appearance.crt)
+          ? { ...DEFAULT_CONFIG.appearance.crt, ...stored.appearance.crt } : stored.appearance.crt
+    },
     controls: { ...DEFAULT_CONFIG.controls, ...(stored.controls || {}) },
     ending: { ...DEFAULT_CONFIG.ending, ...(stored.ending || {}) },
     modern: { ...DEFAULT_CONFIG.modern, ...(stored.modern || {}), ...(preset || {}) }

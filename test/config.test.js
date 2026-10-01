@@ -152,6 +152,23 @@ test('default configuration is valid', () => {
   assert.equal(validate(DEFAULT_CONFIG).mode, 'original');
 });
 
+test('partial CRT settings merge with defaults without changing the next launch', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-crt-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'config.json');
+  fs.writeFileSync(file, JSON.stringify({ appearance: { crt: { enabled: false, scanlines: 0.4 } } }));
+  const config = loadConfig(['--config', file]);
+  assert.equal(config.appearance.crt.enabled, false);
+  assert.equal(config.appearance.crt.scanlines, 0.4);
+  assert.equal(config.appearance.crt.glow, DEFAULT_CONFIG.appearance.crt.glow);
+  config.appearance.crt.glow = 0.9;
+  assert.equal(loadConfig(['--config', file]).appearance.crt.glow, 0.35);
+  for (const invalid of [null, [], { glow: -0.1 }, { scanlines: 1.1 }, { glass: '0.2' }, { vignette: false }, { scanlineSpacing: 2.5 }]) {
+    fs.writeFileSync(file, JSON.stringify({ appearance: { crt: invalid } }));
+    assert.throws(() => loadConfig(['--config', file]), /appearance\.crt/);
+  }
+});
+
 test('invalid area references are rejected', () => {
   assert.throws(() => validate({ ...DEFAULT_CONFIG, modern: { ...DEFAULT_CONFIG.modern, areas: ['main missing', 'main monitor'] } }), /unknown pane/);
 });

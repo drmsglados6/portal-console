@@ -34,7 +34,15 @@
     "maximumFontSize": 32,
     "fontSizeStep": 1,
     "hardwareAcceleration": false,
-    "mouseWheelMode": "local"
+    "mouseWheelMode": "local",
+    "crt": {
+      "enabled": true,
+      "glow": 0.35,
+      "scanlines": 0.12,
+      "scanlineSpacing": 3,
+      "vignette": 0.3,
+      "glass": 0.12
+    }
   },
   "ending": {
     "source": "auto",

@@ -31,6 +31,7 @@ async function run() {
   const checkLayout = process.argv.includes('--layout');
   const checkNewWindow = process.argv.includes('--new-window');
   const checkRegex = process.argv.includes('--regex');
+  const checkCrt = process.argv.includes('--crt');
   const sourceId = process.argv.includes('--third') ? 'third' : 'main';
   const port = await availablePort();
   const electron = require('electron');
@@ -85,7 +86,7 @@ async function run() {
   const mockWindowLaunch = checkNewWindow ? "const cp=require('node:child_process'),realSpawn=cp.spawn; cp.spawn=function(file,args,options){if(file===process.execPath&&options?.detached){process.stdout.write('NEW_WINDOW_SPAWN '+JSON.stringify(args)+'\\n');return {pid:12345,on(){return this},unref(){}};}return realSpawn.apply(this,arguments)};" : '';
   fs.writeFileSync(path.join(configHome, 'main.js'), `${mockWindowLaunch} const {ipcMain,BrowserWindow}=require('electron'); ipcMain.on('terminal:write',(_event,value)=>process.stdout.write('WRITE '+JSON.stringify(value)+'\\n')); ipcMain.on('app:quit',()=>process.stdout.write('QUIT\\n')); require(${JSON.stringify(path.join(__dirname, '..', 'src', 'main.js'))}); ${checkWheel ? "setTimeout(()=>BrowserWindow.getAllWindows()[0]?.webContents.send('terminal:data',{id:'main',data:'\\x1b[?1000h\\x1b[?1006h',generation:1}),4000);" : ''}\n`);
   const child = spawn(electron, [configHome, '--windowed', ...(checkPreset ? ['--preset', '3x2'] : []), `--remote-debugging-port=${port}`], {
-    stdio: 'pipe', env: { ...process.env, APPDATA: configHome }
+    stdio: 'pipe', env: { ...process.env, APPDATA: configHome, XDG_CONFIG_HOME: configHome }
   });
   let errors = '';
   let writes = '';
@@ -152,6 +153,31 @@ async function run() {
         type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r'
       } }));
     };
+    if (checkCrt) {
+      const state = () => send('Runtime.evaluate', { expression: `({
+        enabled: document.body.classList.contains('crt-enabled'),
+        software: document.body.classList.contains('software-rendering'),
+        overlay: getComputedStyle(document.querySelector('.terminal-pane'), '::after').content,
+        pointerEvents: getComputedStyle(document.querySelector('.terminal-pane'), '::after').pointerEvents,
+        glow: getComputedStyle(document.querySelector('.xterm-rows')).textShadow,
+        dialog: document.querySelector('#crt-dialog').open,
+        spacing: document.body.style.getPropertyValue('--crt-spacing')
+      })`, returnByValue: true });
+      let current = (await state()).result.result.value;
+      if (!current.enabled || !current.software || current.overlay === 'none' || current.pointerEvents !== 'none' || current.glow === 'none') throw new Error(`CRT software-rendering effects missing: ${JSON.stringify(current)}`);
+      await send('Runtime.evaluate', { expression: `document.querySelector('#crt-button').click(); document.querySelector('#crt-enabled').click()` });
+      current = (await state()).result.result.value;
+      if (current.enabled || !current.dialog || current.overlay !== 'none' || current.glow !== 'none') throw new Error(`CRT disable failed: ${JSON.stringify(current)}`);
+      await send('Runtime.evaluate', { expression: `document.querySelector('#crt-enabled').click(); const slider = document.querySelector('[data-crt=scanlineSpacing]'); slider.value = '6'; slider.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('#crt-close').click()` });
+      current = (await state()).result.result.value;
+      if (!current.enabled || current.dialog || current.spacing !== '6px') throw new Error(`CRT live adjustment failed: ${JSON.stringify(current)}`);
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'P', code: 'KeyP', windowsVirtualKeyCode: 80, modifiers: 10 });
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'g', code: 'KeyG', windowsVirtualKeyCode: 71 });
+      current = (await state()).result.result.value;
+      if (current.enabled) throw new Error('Command-mode G did not disable CRT');
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      console.log('CRT software rendering, dialog toggle, live adjustment and command-mode toggle verified');
+    }
     if (checkNewWindow) {
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'N', code: 'KeyN', windowsVirtualKeyCode: 78, modifiers: 10 });
       await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'N', code: 'KeyN', windowsVirtualKeyCode: 78, modifiers: 10 });

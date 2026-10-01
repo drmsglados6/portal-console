@@ -18,6 +18,7 @@ const media = new Map();
 const presetDialog = document.querySelector('#preset-dialog');
 const helpDialog = document.querySelector('#help-dialog');
 const replaceDialog = document.querySelector('#replace-dialog');
+const crtDialog = document.querySelector('#crt-dialog');
 const terminalTheme = {
   background: '#050301', foreground: '#ff9d20', cursor: '#ffc168', cursorAccent: '#050301',
   selectionBackground: '#7a430e99', black: '#050301', red: '#ff7920', green: '#d88319', yellow: '#ffc168',
@@ -45,6 +46,35 @@ let endingVolume = 0.1;
 let endingArtFitKey = '';
 let switchingPreset = false;
 let queuedPreset;
+
+function applyCrt() {
+  const crt = config.appearance.crt;
+  const style = document.body.style;
+  document.body.classList.toggle('crt-enabled', crt.enabled);
+  style.setProperty('--crt-scanlines', crt.scanlines);
+  style.setProperty('--crt-spacing', `${crt.scanlineSpacing}px`);
+  style.setProperty('--crt-vignette', crt.vignette);
+  style.setProperty('--crt-glass', crt.glass);
+  style.setProperty('--crt-glow', crt.glow === 0 ? 'none' : `0 0 ${(1 + crt.glow * 3).toFixed(2)}px color-mix(in srgb, currentColor ${(crt.glow * 70).toFixed(0)}%, transparent)`);
+  document.querySelector('#crt-button').setAttribute('aria-pressed', String(crt.enabled));
+  document.querySelector('#crt-enabled').checked = crt.enabled;
+  crtDialog.querySelectorAll('[data-crt]').forEach((input) => {
+    input.value = crt[input.dataset.crt];
+    crtDialog.querySelector(`[data-crt-value="${input.dataset.crt}"]`).textContent = Number(input.value).toFixed(input.dataset.crt === 'scanlineSpacing' ? 0 : 2);
+  });
+}
+
+function toggleCrt() {
+  config.appearance.crt.enabled = !config.appearance.crt.enabled;
+  applyCrt();
+  setCommandMode(true, `CRT ${config.appearance.crt.enabled ? 'ON' : 'OFF'}   G TOGGLE   ESC/I TERMINAL`);
+}
+
+function openCrtSettings() {
+  applyCrt();
+  crtDialog.showModal();
+  document.querySelector('#crt-enabled').focus();
+}
 
 async function openNewWindow() {
   try { await window.portalConsole.newWindow(); }
@@ -511,7 +541,7 @@ function setCommandMode(value, message = '') {
   commandMode = value;
   document.body.classList.toggle('command-mode', commandMode);
   modeIndicator.textContent = commandMode
-    ? `-- COMMAND --  ${message || 'E ENDING   R RESTART   H/L SELECT   ESC/I TERMINAL'}`
+    ? `-- COMMAND --  ${message || 'E ENDING   R RESTART   G CRT   H/L SELECT   ESC/I TERMINAL'}`
     : '';
   if (!commandMode) panes.get(focusedId)?.terminal.focus();
 }
@@ -757,7 +787,7 @@ async function restartFocusedTerminal() {
 
 function bindKeys() {
   window.addEventListener('keydown', (event) => {
-    if (presetDialog.open || helpDialog.open || replaceDialog.open) return;
+    if (presetDialog.open || helpDialog.open || replaceDialog.open || crtDialog.open) return;
     let handled = true;
     if (endingPlayback && event.code === 'Space') pauseEndingPlayback();
     else if (endingPlayback && (event.key === 'Escape' || event.key.toLowerCase() === 'q')) stopEndingPlayback();
@@ -780,6 +810,7 @@ function bindKeys() {
     else if (event.ctrlKey && event.shiftKey && event.code === 'KeyP') setCommandMode(!commandMode);
     else if (commandMode && (event.key === 'Escape' || event.key.toLowerCase() === 'i')) setCommandMode(false);
     else if (commandMode && event.key.toLowerCase() === 'r') restartFocusedTerminal();
+    else if (commandMode && event.key.toLowerCase() === 'g') toggleCrt();
     else if (commandMode && event.key.toLowerCase() === 'e') startEndingPlayback();
     else if (commandMode && ['h', 'k'].includes(event.key.toLowerCase())) cycleFocus(true);
     else if (commandMode && ['j', 'l'].includes(event.key.toLowerCase())) cycleFocus(false);
@@ -810,6 +841,7 @@ function bindKeys() {
 async function start() {
   config = await window.portalConsole.config();
   document.body.classList.toggle('software-rendering', !config.appearance.hardwareAcceleration);
+  applyCrt();
   mode = config.mode;
   fullscreen = config.fullscreen;
   fontSize = config.appearance.fontSize;
@@ -850,6 +882,17 @@ async function start() {
   document.querySelector('#new-window-button').addEventListener('click', () => {
     if (!endingPlayback && !presetDialog.open && !helpDialog.open && !replaceDialog.open) openNewWindow();
   });
+  document.querySelector('#crt-button').addEventListener('click', openCrtSettings);
+  document.querySelector('#crt-enabled').addEventListener('change', (event) => {
+    config.appearance.crt.enabled = event.target.checked;
+    applyCrt();
+  });
+  crtDialog.querySelectorAll('[data-crt]').forEach((input) => input.addEventListener('input', () => {
+    config.appearance.crt[input.dataset.crt] = Number(input.value);
+    applyCrt();
+  }));
+  document.querySelector('#crt-close').addEventListener('click', () => crtDialog.close());
+  crtDialog.addEventListener('close', () => { if (!commandMode && !endingPlayback) panes.get(focusedId)?.terminal.focus(); });
   renderLayout(mode);
 }
 
