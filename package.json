@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "A Portal-inspired multi-screen terminal for Linux, macOS, and Windows",
   "author": "Portal Console contributors",
+  "homepage": "https://github.com/drmsglados6/portal-console",
   "main": "src/main.js",
   "type": "commonjs",
   "bin": {
@@ -49,6 +50,7 @@
     ],
     "afterPack": "scripts/after-pack.js",
     "linux": {
+      "maintainer": "Portal Console contributors <drmsglados6@users.noreply.github.com>",
       "target": [
         "AppImage",
         "deb"
