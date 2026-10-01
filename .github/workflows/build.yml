@@ -129,4 +129,8 @@ jobs:
       - run: npm run dist -- --linux --x64 --dir --publish never
       - run: node scripts/check-packaged.js
       - run: python3 scripts/check-headless.py
+      - name: Configure sandbox permissions for unpacked GUI test
+        run: |
+          sudo chown root:root release/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 release/linux-unpacked/chrome-sandbox
       - run: xvfb-run -a node scripts/check-linux-gui.js
