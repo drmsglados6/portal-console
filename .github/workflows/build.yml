@@ -84,9 +84,10 @@ jobs:
         shell: bash
         run: |
           directory="$(mktemp -d)"
+          ditto "release/${{ matrix.arch == 'arm64' && 'mac-arm64' || 'mac' }}/portal-console.app" "$directory/portal-console.app"
+          sh installer/install-unix.sh release/portal-console-*-mac-${{ matrix.arch }}.dmg "$directory"
           sh installer/install-unix.sh release/portal-console-*-mac-${{ matrix.arch }}.zip "$directory"
-          sh installer/install-unix.sh release/portal-console-*-mac-${{ matrix.arch }}.zip "$directory"
-          node -e 'const fs=require("fs"),p=require("path");const r=JSON.parse(fs.readFileSync(p.join(process.argv[1],"portal-console.app/.portal-console-install.json")));if(r.method!=="mac-zip"||r.previousMethod!=="mac-zip"||!r.previousVersion)process.exit(1)' "$directory"
+          node -e 'const fs=require("fs"),p=require("path");const r=JSON.parse(fs.readFileSync(p.join(process.argv[1],"portal-console.app/.portal-console-install.json")));if(r.method!=="mac-zip"||r.previousMethod!=="mac-dmg"||!r.previousVersion)process.exit(1)' "$directory"
       - name: Verify packaged headless launcher
         if: runner.os == 'Linux'
         run: python3 scripts/check-headless.py
@@ -190,3 +191,4 @@ jobs:
           assert record['previousVersion'] == '0.1.0', record
           print(record)
           PY
+          PORTAL_CONSOLE_EXECUTABLE=/usr/bin/portal-console python3 scripts/check-headless.py

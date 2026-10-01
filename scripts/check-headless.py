@@ -16,7 +16,7 @@ def check(arguments):
         env.pop(name, None)
     env.update(TERM='xterm-256color', SHELL='/bin/bash')
     child = subprocess.Popen(
-        ['release/linux-unpacked/portal-console', '--mode', 'modern', *arguments],
+        [os.environ.get('PORTAL_CONSOLE_EXECUTABLE', 'release/linux-unpacked/portal-console'), '--mode', 'modern', *arguments],
         stdin=slave, stdout=slave, stderr=slave, env=env,
     )
     os.close(slave)
