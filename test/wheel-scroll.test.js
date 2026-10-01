@@ -21,8 +21,11 @@ test('local wheel scrolls the normal buffer without sending mouse input', () => 
   assert.equal(event.stopped, true);
   assert.ok(scrolled[0] < 0);
   terminal.buffer.active.type = 'alternate';
-  handle(wheel(120));
+  const alternate = wheel(120);
+  handle(alternate);
   assert.equal(scrolled.length, 1);
+  assert.equal(alternate.cancelled, false);
+  assert.equal(alternate.stopped, undefined);
 });
 
 test('Alt+wheel and application mode defer to xterm mouse handling', () => {

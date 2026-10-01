@@ -53,7 +53,8 @@ async function check() {
     if (!ready) throw new Error(`GUI terminals did not initialize: ${errors}`);
     await delay(500);
     if (/GLib-GObject:.*assertion/.test(errors)) throw new Error(`GTK assertion during GUI startup: ${errors}`);
-    await evaluate('window.portalConsole.quit(); true');
+    // Closing the app can close CDP before its evaluation response is sent.
+    socket.send(JSON.stringify({ id: ++sequence, method: 'Runtime.evaluate', params: { expression: 'window.portalConsole.quit()' } }));
     const code = await Promise.race([exited, delay(10000).then(() => { throw new Error('GUI did not close'); })]);
     if (code !== 0) throw new Error(`GUI exit code: ${code}; ${errors}`);
     console.log('Ubuntu GUI initialized three terminal panes and closed cleanly');
