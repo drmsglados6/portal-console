@@ -64,6 +64,29 @@ jobs:
       - name: Verify CRT controls on Windows
         if: runner.os == 'Windows'
         run: node scripts/check-gui-exit.js --crt
+      - name: Verify legacy Windows simple-installer update
+        if: runner.os == 'Windows'
+        run: node scripts/check-windows-update.js
+      - name: Verify NSIS recorded installation and update
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/check-nsis-update.ps1
+      - name: Verify AppImage recorded installation and update
+        if: runner.os == 'Linux'
+        run: |
+          directory="$(mktemp -d)"
+          sh installer/install-unix.sh release/*.AppImage "$directory"
+          sh installer/install-unix.sh release/*.AppImage "$directory"
+          node -e 'const fs=require("fs"),p=require("path");const r=JSON.parse(fs.readFileSync(p.join(process.argv[1],".portal-console-install.json")));if(r.method!=="linux-appimage"||r.previousMethod!=="linux-appimage"||!r.previousVersion)process.exit(1)' "$directory"
+          cp installer/install-unix.sh release/install-unix.sh
+      - name: Verify macOS recorded installation and update
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          directory="$(mktemp -d)"
+          sh installer/install-unix.sh release/portal-console-*-mac-${{ matrix.arch }}.zip "$directory"
+          sh installer/install-unix.sh release/portal-console-*-mac-${{ matrix.arch }}.zip "$directory"
+          node -e 'const fs=require("fs"),p=require("path");const r=JSON.parse(fs.readFileSync(p.join(process.argv[1],"portal-console.app/.portal-console-install.json")));if(r.method!=="mac-zip"||r.previousMethod!=="mac-zip"||!r.previousVersion)process.exit(1)' "$directory"
       - name: Verify packaged headless launcher
         if: runner.os == 'Linux'
         run: python3 scripts/check-headless.py
@@ -86,11 +109,12 @@ jobs:
             release/*.dmg
             release/*.zip
             release/*.blockmap
+            release/*.sh
 
   release:
     name: Publish tagged release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, ubuntu-gui]
+    needs: [build, ubuntu-gui, deb-upgrade]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -137,3 +161,32 @@ jobs:
           sudo chown root:root release/linux-unpacked/chrome-sandbox
           sudo chmod 4755 release/linux-unpacked/chrome-sandbox
       - run: xvfb-run -a node scripts/check-linux-gui.js
+
+  deb-upgrade:
+    name: Upgrade Ubuntu deb from 0.1.0
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: portal-console-linux-x64
+          path: packages
+      - name: Download legacy release and test upgrade
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir legacy
+          gh release download v0.1.0 --repo "$GITHUB_REPOSITORY" --pattern '*.deb' --dir legacy
+          sudo apt-get update
+          sudo apt-get install -y ./legacy/*.deb
+          sudo apt-get install -y ./packages/*.deb
+          python3 - <<'PY'
+          import json
+          with open('/opt/Portal Console/.portal-console-install.json') as f:
+              record = json.load(f)
+          assert record['method'] == 'linux-deb', record
+          assert record['previousVersion'] == '0.1.0', record
+          print(record)
+          PY

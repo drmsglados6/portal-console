@@ -10,6 +10,7 @@ const { loadScene } = require('./ending-scene');
 const { importPortalCredits } = require('./portal-import');
 const { refreshEnvironment, resolveConsole, spawnOptions } = require('./shell');
 const { newWindowArgs } = require('./window-launch');
+const { readInstallation } = require('./installation');
 
 const sessions = new Map();
 const logoCache = new Map();
@@ -314,6 +315,13 @@ if (process.argv.includes('--preset-list')) {
   app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
   app.whenReady().then(() => {
     diagnostic(`Started ${app.getVersion()}, hardware acceleration: ${config.appearance.hardwareAcceleration}`);
+    try {
+      const directory = process.platform === 'darwin' ? path.resolve(process.execPath, '../../..') : path.dirname(process.execPath);
+      const record = app.isPackaged ? readInstallation(directory) : null;
+      const method = process.env.PORTABLE_EXECUTABLE_FILE ? 'windows-portable'
+        : process.env.APPIMAGE ? 'linux-appimage' : record?.method || (app.isPackaged ? 'manual/unrecorded' : 'development');
+      diagnostic(`Installation method: ${method}; recorded version: ${record?.version || 'unrecorded'}`);
+    } catch (error) { diagnostic(`Installation record could not be read: ${error.message}`); }
     installIpc();
     createWindow();
     const emergencyShortcut = globalShortcut.register('Control+Alt+Shift+Q', () => {

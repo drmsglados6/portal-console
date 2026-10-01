@@ -164,6 +164,38 @@ npm run installer:win
 
 管理者権限は不要です。更新時はインストール済みPortal Consoleを先に終了してください。アンインストールはインストール先の `uninstall.ps1` を実行します。ログも削除する場合は `-RemoveLogs` を指定してください。
 
+### Installation Method and Updates (0.1.3+)
+
+インストーラはアプリ本体の `.portal-console-install.json` に方式、バージョン、日時、前の方式／バージョンを記録します。判別にはこの記録を優先し、記録のない旧版は既存のランチャー／アンインストーラ、dpkg情報、macOSのBundle IDから確認します。記録にはユーザー名、パスワード、トークンは含めません。
+
+| 方式 | 更新・記録 |
+| --- | --- |
+| Windows簡易ZIP | `install.cmd`で同じ場所へ上書き。旧版が登録した`PORTAL_CONSOLE_HOME`も参照。`release-0929`の記録なし簡易版を検出可能 |
+| Windows NSIS | `setup.exe`で更新し、方式を記録。簡易版を検出した場合は簡易ZIPでの更新を案内し、方式を混在させない |
+| Ubuntu/deb | `sudo apt install ./新しい版.deb`。dpkgの旧バージョンを更新記録に残す（`0.1.0`からも対応） |
+| macOS app/dmg/zip | 以下の補助スクリプトで同じ`.app`を置き換え、方式を記録。旧手動コピー版はBundle ID／バージョンを確認 |
+| Linux AppImage | 補助スクリプトで同じファイルを置き換え、方式を記録 |
+| Windows portable |インストールは行わず、起動時の診断ログにportableとして記録 |
+
+Windowsのインストールログは `%APPDATA%\portal-console\logs\install.log`、debは `/var/log/portal-console/install.log`、macOS補助スクリプトは `~/Library/Logs/portal-console/install.log`、AppImage補助スクリプトは `${XDG_STATE_HOME:-~/.local/state}/portal-console/install.log` です。設定・保存済みプリセットは更新対象のアプリ本体と別に保持します。
+
+Releaseの `install-unix.sh` をダウンロードして使います。システムのNode.jsは不要です。
+
+```sh
+# Ubuntuで0.1.0から更新（補助スクリプトなしでも記録されます）
+sudo apt install ./portal-console-0.1.3-linux-amd64.deb
+
+# macOS: 既定は ~/Applications/portal-console.app
+sh install-unix.sh ./portal-console-0.1.3-mac-arm64.dmg
+# 既存アプリが /Applications にある場合は同じ場所を指定
+sh install-unix.sh ./portal-console-0.1.3-mac-arm64.zip /Applications
+
+# AppImage: 既定は ~/.local/opt/portal-console、リンクは ~/.local/bin/portal-console
+sh install-unix.sh ./portal-console-0.1.3-linux-x86_64.AppImage
+```
+
+macOSの既存アプリは更新前に終了してください。`/Applications`への書込権限が必要な環境では、書込可能なインストール先を指定してください。Finderでの手動コピーやAppImageの手動差し替えではインストール補助スクリプトが動かないため、配布形式までの記録はできません。方式を変更する場合は旧方式のアンインストーラで本体を削除してから新方式で入れてください。
+
 Linux では AppImage/deb、macOS では dmg/zip、Windows では NSIS/portable が対象です。macOS と Windows の署名設定は配布者側で別途必要です。
 
 ## Key Bindings

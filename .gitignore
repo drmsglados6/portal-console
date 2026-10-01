@@ -19,6 +19,7 @@ development-logs/
 logs/
 presets/
 config.json
+.portal-console-install.json
 portal-console.local.json
 
 # Local credentials and environment overrides

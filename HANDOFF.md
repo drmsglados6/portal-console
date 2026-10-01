@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.2` (latest tagged release: `0.1.1`)
+- Source version: `0.1.3` (latest tagged release: `0.1.1`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -160,3 +160,10 @@ Static CSS glow, scanlines, vignette, and glass highlights are available through
 
 Windows GUI checks verified software-mode effects, ON/OFF, slider adjustments, command-mode toggling, and subsequent terminal input/exit. Ubuntu 24.04 GUI checks verified CRT rendering and toggling. All OS builds passed: <https://github.com/drmsglados6/portal-console/actions/runs/36823002780>.
 Development packages are available in that run's artifacts. No `v0.1.2` tag/release has been created yet. Screen distortion, phosphor persistence, and animated noise remain future work.
+
+## Installation Method Records (0.1.3)
+
+Installers write `.portal-console-install.json` at the application root with schema/app ID, method, version, timestamp and predecessor method/version. Windows simple installers detect the release-0929 launcher/uninstaller layout without metadata. NSIS and simple installers detect incompatible installations instead of mixing them. deb hooks extend electron-builder's original alternatives/sandbox/AppArmor hooks and record dpkg's previous version.
+
+`installer/install-unix.sh` handles deb/AppImage and macOS app/dmg/zip updates. Manual Finder copies or portable file replacements do not execute installer hooks; GUI diagnostics report portable/AppImage or unrecorded installations when appropriate.
+CI checks cover simulated release-0929 layout updates, NSIS install/reinstall, the actual `v0.1.0` deb upgrade, and macOS/AppImage record-preserving updates. The original release-0929 script also has an optional local test via `node scripts/check-windows-update.js --actual-legacy`.

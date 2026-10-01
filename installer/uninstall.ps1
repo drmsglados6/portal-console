@@ -6,6 +6,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (Test-Path -LiteralPath (Join-Path $InstallDir '.portal-console-install.json')) {
+  $record = Get-Content -LiteralPath (Join-Path $InstallDir '.portal-console-install.json') -Raw | ConvertFrom-Json
+  if ($record.appId -ne 'science.aperture.portalconsole' -or $record.method -ne 'windows-simple') { throw 'Use the uninstaller for the recorded installation method.' }
+}
 $running = Get-Process -Name 'portal-console' -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$InstallDir*" }
 if ($running) { throw 'Close Portal Console before uninstalling it.' }
 
