@@ -56,6 +56,47 @@ npm start -- --preset 5-2
 
 同じ `panes` 配列で `kind` を `image`、`pdf`、`web` にすると、窓の中にそれぞれ画像、PDF、Webページを表示できます。`source` は画像/PDFならファイルパス、Webなら `http(s)` URLです。例: `{ "id": "reference", "title": "REFERENCE", "kind": "pdf", "source": "C:\\docs\\manual.pdf" }`。`web` はElectron内の独立したビューで、戻る・進む・再読込・URL入力を利用できます。種類を切り替えて端末を閉じる場合は確認ダイアログが出ます。ヘッドレス版は画像/PDF/Webの内容を表示せず、種類と参照元を文字で表示します。
 
+### Open the Built-in Web Browser / Media Viewer
+
+**GUIのmodernモードで、設定ファイルに表示ペインを指定して起動します。** 現在はブラウザやファイルを開く`portal-browser`／`portal-open`コマンドはありません。
+
+1. リポジトリの `portal-console.media.example.json` を `media.json` として保存します。
+2. 以下で起動すると、左にターミナル、右に `https://example.com` の内蔵ブラウザが表示されます。
+
+```sh
+# Linuxの配布版
+portal-console --mode modern --config ./media.json
+
+# ソースから起動
+npm start -- --config ./portal-console.media.example.json
+```
+
+WindowsのNSIS版では、PowerShellから次で起動できます（`media.json`をホームフォルダへ保存した場合）。
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\portal-console\portal-console.exe" --mode modern --config "$HOME\media.json"
+```
+
+macOSで補助スクリプトの既定先にインストールした場合:
+
+```sh
+open -n "$HOME/Applications/portal-console.app" --args --mode modern --config "$HOME/media.json"
+```
+
+ブラウザ上部のURL欄をクリックし、`https://`／`http://`から始まるURLを入力してEnterで移動します。`←`／`→`は戻る／進む、`↻`は再読込です。コマンドモード中なら、Escで通常入力へ戻ってから操作してください。
+
+PDFや画像を表示する場合は、サンプル内の `viewer` ペインの `kind` と `source` を変更して起動し直します。`id: "viewer"`と`areas`はそのままで構いません。
+
+```json
+{ "id": "viewer", "title": "PDF", "kind": "pdf", "source": "C:/docs/manual.pdf" }
+```
+
+```json
+{ "id": "viewer", "title": "IMAGE", "kind": "image", "source": "C:/pictures/image.png" }
+```
+
+パスは実在するファイルの絶対パスに置き換えてください。Linux／macOSでは `/path/to/manual.pdf` のように指定します。画像はペインにフィットして表示します。画像/PDFはWebのURL欄から開く方式ではありません。ヘッドレス版では内蔵のグラフィカルビューアを表示しないため、テキストブラウザは `w3m https://example.com` を使います。
+
 ## Setup
 
 Node.js 22 以降と npm が必要です。`node-pty` 1.1.0 の対象 OS/CPU 向け N-API プリビルドを利用します。プリビルドのない環境でソースビルドする場合は C/C++ ビルドツールが必要で、Windows では Visual Studio の Spectre 対応 MSVC ライブラリも必要です。

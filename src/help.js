@@ -68,6 +68,17 @@ function helpSections(frontend, config) {
       ['Media / clipboard / font', 'Images, PDF and web panes are placeholders; host-terminal clipboard and font settings are used.'],
       ['Mouse / CRT / sound', 'Mouse forwarding, graphical CRT effects and ending audio are not available in ANSI mode.']
     ] },
+    ...gui ? [{ title: 'HOW TO OPEN THE BUILT-IN BROWSER / VIEWER', entries: [
+      ['1. Create a config', 'Save portal-console.media.example.json from the repository as media.json. It has a terminal on the left and a web browser on the right.'],
+      ['2. Launch the GUI', 'portal-console --mode modern --config ./media.json. In a source checkout: npm start -- --config ./portal-console.media.example.json.'],
+      ['Windows NSIS installation', 'Use & "$env:LOCALAPPDATA/Programs/portal-console/portal-console.exe" --mode modern --config "$HOME/media.json" in PowerShell.'],
+      ['Web pane', 'Set kind to web and source to an https:// or http:// URL. No portal-browser / portal-open launch command exists yet.'],
+      ['Browser controls', 'Click the URL field, enter a complete http(s) URL and press Enter. The arrow buttons go back/forward; the circular arrow reloads. Leave command mode with Esc first.'],
+      ['PDF pane', 'Keep the same pane id, set kind to pdf, and source to an existing absolute file path, e.g. C:/docs/manual.pdf or /path/to/manual.pdf.'],
+      ['Image pane', 'Set kind to image and source to an existing absolute image path. Images fit the pane; the URL toolbar is for web panes only.'],
+      ['Editing the config', 'Keep columns/rows/areas consistent with pane ids. Relaunch with the modified config; modern is required to display media panes.'],
+      ['Headless alternative', 'The graphical viewer is GUI-only. Use w3m URL in a headless terminal instead.']
+    ] }] : [],
     { title: 'ENDING PLAYBACK', entries: [
       [gui ? 'Command mode E' : 'Ctrl+B then c, E', 'Start ending playback; headless playback requires original mode.'],
       ['Space', 'Pause / resume playback.'],

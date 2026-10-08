@@ -1,0 +1,13 @@
+{
+  "mode": "modern",
+  "fullscreen": false,
+  "modern": {
+    "columns": ["1fr", "1fr"],
+    "rows": ["1fr"],
+    "areas": ["main viewer"],
+    "panes": [
+      { "id": "main", "title": "TERMINAL", "kind": "terminal" },
+      { "id": "viewer", "title": "WEB", "kind": "web", "source": "https://example.com" }
+    ]
+  }
+}
