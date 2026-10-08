@@ -19,6 +19,19 @@ contextBridge.exposeInMainWorld('portalConsole', {
   preset: (name) => ipcRenderer.invoke('app:preset', name),
   presets: () => ipcRenderer.invoke('app:preset-list'),
   mediaUrl: (id) => ipcRenderer.invoke('app:media-url', id),
+  resolveMedia: (request) => ipcRenderer.invoke('media:resolve', request),
+  pdfData: (source) => ipcRenderer.invoke('media:pdf-data', source),
+  chooseMediaFile: () => ipcRenderer.invoke('media:choose-file'),
+  onMediaMaximize: (callback) => {
+    const listener = (_event, id) => callback(id);
+    ipcRenderer.on('media:maximize', listener);
+    return () => ipcRenderer.removeListener('media:maximize', listener);
+  },
+  onMediaControl: (callback) => {
+    const listener = (_event, request) => callback(request);
+    ipcRenderer.on('media:control', listener);
+    return () => ipcRenderer.removeListener('media:control', listener);
+  },
   setLayout: (layout) => ipcRenderer.invoke('app:set-layout', layout),
   close: (id) => ipcRenderer.invoke('terminal:close', id),
   onData: (callback) => {

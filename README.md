@@ -58,7 +58,58 @@ npm start -- --preset 5-2
 
 ### Open the Built-in Web Browser / Media Viewer
 
-**GUIのmodernモードで、設定ファイルに表示ペインを指定して起動します。** 現在はブラウザやファイルを開く`portal-browser`／`portal-open`コマンドはありません。
+**GUIのターミナルで `portal-media SOURCE` を実行すると、端末を残したまま表示ペインを追加できます。** originalモードからはmodernへ切り替えて追加します。
+
+```text
+portal-media https://example.com
+portal-media "C:/pictures/image.png"
+portal-media "C:/docs/manual.pdf"
+portal-media "/path/to/movie.webm"
+```
+
+HTTP/HTTPSはWeb、ローカルファイルは拡張子から種類を選択します。URL上のPDFや動画を専用ビューアで開く場合、または拡張子で判断できない場合は種類を上書きできます。
+
+```text
+portal-media https://example.com/book.pdf --kind pdf
+portal-media --kind video --source "https://example.com/movie.mp4"
+```
+
+`portal-media`だけを入力するか **+ MEDIA** を押すと、sourceと種類（AUTO／IMAGE／PDF／VIDEO／WEB）を選ぶ画面が開きます。判定できなかったsourceもこの画面に残るため、手動で修正できます。ファイルはPortal Consoleを動かしているマシン上のものを指定してください。SSH接続先のファイルを自動転送する機能ではありません。絶対パスを推奨し、相対パスはアプリの起動ディレクトリを基準に解決します。
+
+| 表示 | キー操作（ビューア内容をクリックしてフォーカス） |
+| --- | --- |
+| 共通 | `F11`でペイン最大化／復元。`CLOSE`でメディアだけ閉じる |
+| ローカルファイル | `S`で名前／更新日時／サイズ順、`Shift+S`で昇順／降順切替。ツールバーでも指定可能 |
+| 画像 | 左右で前後の画像。`F`でフィット、`1`で実寸、`+`／`-`で拡大縮小 |
+| PDF | 上下またはPageUp/PageDownで前後ページ。左右の方向はLTR／RTL設定に従い、`D`で切替。ページ番号欄で直接移動 |
+| PDF・動画 | `Ctrl+Left`／`Ctrl+Right`で前後ファイル（同じフォルダ内、同種類） |
+| 動画 | 左右で指定秒数スキップ、上下で音量、Spaceで再生／一時停止。スキップ秒数はツールバーでも変更可能 |
+| Web | URL欄でHTTP/HTTPSのアドレスを入力。BACK／FORWARD／RELOADで操作。Web内容にフォーカス中のF11もペインを最大化 |
+
+ファイル移動・並び替えはローカルの同じフォルダ内が対象です。HTTPリンクにはフォルダ一覧がないため、前後ファイル移動はできません。動画の対応コーデックはElectronに依存します。
+
+今回は全OS共通の内蔵ビューアです。WebはElectron内の別プロファイルで、OS既定ブラウザのブックマーク／拡張機能をそのまま利用するバックエンド、IrfanView等の選択、任意の外部ウィンドウのドッキングは今後の実験項目です。
+
+起動時の操作設定は次のように指定できます。GUI内の並び替え／方向変更はそのペイン内で有効です。
+
+```json
+{
+  "media": {
+    "imageViewer": "internal",
+    "fileSort": "name",
+    "descending": false,
+    "pdfArrowDirection": "ltr",
+    "videoSeekSeconds": 5,
+    "videoVolumeStep": 0.05
+  }
+}
+```
+
+`imageViewer`は現在`internal`のみです。右綴じの本は`pdfArrowDirection: "rtl"`で左キーが次ページになります。ヘッドレスはグラフィカルビューアを表示しないため、Web閲覧にはw3mを使ってください。
+
+#### 起動時の固定配置
+
+JSON設定で表示ペインを指定して起動する方法も引き続き使えます。
 
 1. リポジトリの `portal-console.media.example.json` を `media.json` として保存します。
 2. 以下で起動すると、左にターミナル、右に `https://example.com` の内蔵ブラウザが表示されます。
@@ -83,7 +134,7 @@ macOSで補助スクリプトの既定先にインストールした場合:
 open -n "$HOME/Applications/portal-console.app" --args --mode modern --config "$HOME/media.json"
 ```
 
-ブラウザ上部のURL欄をクリックし、`https://`／`http://`から始まるURLを入力してEnterで移動します。`←`／`→`は戻る／進む、`↻`は再読込です。コマンドモード中なら、Escで通常入力へ戻ってから操作してください。
+ブラウザ上部のURL欄をクリックし、`https://`／`http://`から始まるURLを入力してEnterで移動します。入力欄では通常のコピー／貼り付けが使えます。
 
 PDFや画像を表示する場合は、サンプル内の `viewer` ペインの `kind` と `source` を変更して起動し直します。`id: "viewer"`と`areas`はそのままで構いません。
 
@@ -99,7 +150,7 @@ PDFや画像を表示する場合は、サンプル内の `viewer` ペインの 
 
 ## Setup
 
-Node.js 22 以降と npm が必要です。`node-pty` 1.1.0 の対象 OS/CPU 向け N-API プリビルドを利用します。プリビルドのない環境でソースビルドする場合は C/C++ ビルドツールが必要で、Windows では Visual Studio の Spectre 対応 MSVC ライブラリも必要です。
+Node.js 22.13 以降と npm が必要です。`node-pty` 1.1.0 の対象 OS/CPU 向け N-API プリビルドを利用します。プリビルドのない環境でソースビルドする場合は C/C++ ビルドツールが必要で、Windows では Visual Studio の Spectre 対応 MSVC ライブラリも必要です。
 
 ```sh
 npm ci
@@ -130,6 +181,7 @@ Mac版はMac本体にソースを転送し、Mac上で `npm ci` の後に `npm r
 | ライブラリ | 用途 |
 | --- | --- |
 | Electron 43 | GUIとアプリ実行環境 |
+| pdfjs-dist 6 | ペイン内PDF描画・ページ操作。ワーカー／標準フォント／CMap／WASMを配布物へ同梱 |
 | xterm.js 6 / addon-fit / headless | ターミナル表示・サイズ調整・ANSI版 |
 | node-pty 1.1 | ネイティブPTYとシェル起動 |
 | sharp 0.35 | 画像のAA変換（libvipsは対応環境のnpmパッケージに同梱） |

@@ -1,6 +1,6 @@
 {
   "name": "portal-console",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A Portal-inspired multi-screen terminal for Linux, macOS, and Windows",
   "author": "Portal Console contributors",
   "homepage": "https://github.com/drmsglados6/portal-console",
@@ -22,6 +22,7 @@
     "@xterm/headless": "6.0.0",
     "@xterm/xterm": "6.0.0",
     "node-pty": "1.1.0",
+    "pdfjs-dist": "6.4.299",
     "sharp": "0.35.3",
     "vpk-tools": "^1.0.3"
   },
@@ -46,6 +47,8 @@
       "package.json"
     ],
     "asarUnpack": [
+      "dist/pdf-worker.js",
+      "dist/pdf/**/*",
       "node_modules/node-pty/**/*",
       "node_modules/@img/**/*"
     ],

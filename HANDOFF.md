@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.4` (latest tagged release: `0.1.4`)
+- Source version: `0.1.5` (latest tagged release: `0.1.4`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -185,3 +185,15 @@ For the user's release-0929 Windows installation, use the new simple-installer Z
 All jobs and release publication passed: <https://github.com/drmsglados6/portal-console/actions/runs/36838236119>.
 Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.4>.
 TTY checks verified n/p (including uppercase/wrap), a changed PID only in the restarted pane, retained PID in another pane, paged help opened by prefix and portal-help, and clean exit. GUI checks verified comprehensive help, rapid close/reopen, F1, portal-restart, CRT controls and subsequent input/exit. The actual deb upgrade job also verified w3m is installed.
+
+## Media Panes (0.1.5)
+
+`portal-media SOURCE` infers http(s) as web and local image/pdf/video extensions. `--kind` and `--source` remain optional overrides. No source or failed inference opens a retained-source manual chooser; + MEDIA also opens it. Media is appended in modern mode while retaining PTYs.
+
+- Image Left/Right: files; F/1/+/-: size. S cycles name/modified/size and Shift+S reverses ordering.
+- PDF Up/Down/PgUp/PgDn: pages; Left/Right follows LTR/RTL, D toggles direction; Ctrl+Left/Right: files.
+- Video Left/Right: configurable seconds; Up/Down: volume; Space: play/pause; Ctrl+Left/Right: files.
+- F11/MAX expands media inside the application, CLOSE removes only its pane. Embedded web also forwards F11, F1 and terminal-selection shortcuts.
+- PDF.js 6 requires Node 22.13+ for development. Build bundles a classic worker and copies fonts/CMaps/WASM. Worker/assets must be unpacked from ASAR; the module/blob worker path caused Electron 43 sandbox startup failures.
+- `scripts/check-gui-exit.js --media --packaged` tests actual packaged rendering and controls, with a synthetic Chromium-recorded WebM (no ffmpeg dependency).
+- The internal browser uses its own Electron profile. Native OS browser/IrfanView embedding and arbitrary-window docking are deferred per the user's chosen cross-platform-first approach. `media.imageViewer` currently accepts internal only.

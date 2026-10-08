@@ -51,6 +51,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential python3 pkg-config dpkg fakeroot \
+            xvfb \
             libgtk-3-0 libnss3 libasound2 libgbm1 libxss1 libatk-bridge2.0-0 \
             libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
             libpangocairo-1.0-0 libcups2
@@ -64,6 +65,15 @@ jobs:
       - name: Verify CRT controls on Windows
         if: runner.os == 'Windows'
         run: node scripts/check-gui-exit.js --crt --help
+      - name: Verify packaged media controls
+        if: runner.os != 'Linux'
+        run: node scripts/check-gui-exit.js --media --packaged
+      - name: Verify packaged media controls on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo chown root:root release/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 release/linux-unpacked/chrome-sandbox
+          xvfb-run -a node scripts/check-gui-exit.js --media --packaged
       - name: Verify legacy Windows simple-installer update
         if: runner.os == 'Windows'
         run: node scripts/check-windows-update.js

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:; frame-src 'self' file: https: http:; media-src 'self' blob:">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data: https: http:; frame-src 'self' file: https: http:; media-src 'self' file: blob: https: http:; worker-src 'self' blob:">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Console</title>
     <link rel="stylesheet" href="styles.css">
@@ -46,6 +46,16 @@
       <p>Static effects, no GPU requirement. Changes last for this window; save appearance.crt in config.json for startup defaults.</p>
       <div class="preset-actions"><button type="button" id="crt-close">CLOSE</button></div>
     </dialog>
+    <dialog id="media-dialog" class="preset-dialog" aria-label="Open media">
+      <form id="media-form">
+        <h2>OPEN MEDIA</h2>
+        <label>Source (local path or http(s) URL)<input id="media-source" autocomplete="off" required></label>
+        <label>Viewer <select id="media-kind"><option value="auto">AUTO</option><option value="image">IMAGE</option><option value="pdf">PDF</option><option value="video">VIDEO</option><option value="web">WEB</option></select></label>
+        <p>HTTP links default to WEB. Override the viewer for linked PDFs/videos. File controls and F11 maximization are inside the new pane.</p>
+        <p id="media-error" role="alert"></p>
+        <div class="preset-actions"><button type="button" id="media-browse">BROWSE</button><button type="button" id="media-cancel">CANCEL</button><button type="submit">OPEN</button></div>
+      </form>
+    </dialog>
     <div id="mode-indicator" class="mode-indicator" aria-live="polite"></div>
     <div id="shortcut-hint" class="shortcut-hint">CTRL+SHIFT+P COMMAND &nbsp; CTRL+1 PRIMARY &nbsp; CTRL+2 AUX &nbsp; CTRL+TAB NEXT &nbsp; CTRL+SHIFT+N NEW WINDOW &nbsp; CTRL+SHIFT+2/3 LAYOUT</div>
     <nav id="layout-switch" class="layout-switch" aria-label="Window and layout controls">
@@ -53,6 +63,7 @@
       <button type="button" data-layout="modern" aria-pressed="false">MODERN</button>
       <button type="button" id="new-window-button">+ WINDOW</button>
       <button type="button" id="crt-button" aria-pressed="false">CRT</button>
+      <button type="button" id="media-button">+ MEDIA</button>
     </nav>
     <script src="renderer.js"></script>
   </body>

@@ -33,9 +33,11 @@ async function run() {
   const checkRegex = process.argv.includes('--regex');
   const checkCrt = process.argv.includes('--crt');
   const checkHelp = process.argv.includes('--help');
+  const packaged = process.argv.includes('--packaged');
   const sourceId = process.argv.includes('--third') ? 'third' : 'main';
   const port = await availablePort();
-  const electron = require('electron');
+  const electron = packaged ? path.resolve('release', process.platform === 'darwin' ? `${process.arch === 'arm64' ? 'mac-arm64' : 'mac'}/portal-console.app/Contents/MacOS/portal-console`
+    : process.platform === 'win32' ? 'win-unpacked/portal-console.exe' : 'linux-unpacked/portal-console') : require('electron');
   const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-gui-check-'));
   if (checkWheel) {
     const mock = path.join(configHome, 'mouse-server.js');
@@ -54,12 +56,19 @@ async function run() {
     fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({ controls: { closeSelectionSyntax: 'regex' } }));
   }
   if (checkMedia) {
+    fs.copyFileSync(path.join(__dirname, '..', 'assets/aperture-science.svg'), path.join(configHome, 'image2.svg'));
+    fs.copyFileSync(path.join(__dirname, '..', 'assets/aperture-science.svg'), path.join(configHome, 'image10.svg'));
     const pdf = path.join(configHome, 'sample.pdf');
+    const pageOne = 'BT /F1 20 Tf 20 100 Td (PAGE ONE) Tj ET';
+    const pageTwo = 'BT /F1 20 Tf 20 100 Td (PAGE TWO) Tj ET';
     const objects = [
       '<< /Type /Catalog /Pages 2 0 R >>',
-      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R >>',
-      '<< /Length 0 >>\nstream\n\nendstream'
+      '<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>',
+      `<< /Length ${Buffer.byteLength(pageOne)} >>\nstream\n${pageOne}\nendstream`,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>',
+      `<< /Length ${Buffer.byteLength(pageTwo)} >>\nstream\n${pageTwo}\nendstream`,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
     ];
     let contents = '%PDF-1.4\n';
     const offsets = [0];
@@ -68,15 +77,16 @@ async function run() {
       contents += `${index + 1} 0 obj\n${object}\nendobj\n`;
     });
     const xref = Buffer.byteLength(contents);
-    contents += `xref\n0 5\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    contents += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
     fs.writeFileSync(pdf, contents);
+    fs.writeFileSync(path.join(configHome, 'sample2.pdf'), contents);
     const folder = path.join(configHome, 'portal-console');
     fs.mkdirSync(folder);
     fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({
-      mode: 'modern', fullscreen: false, modern: {
+      mode: 'modern', fullscreen: false, media: { videoSeekSeconds: 0.2 }, modern: {
         columns: ['1fr', '1fr'], rows: ['1fr', '1fr'], areas: ['main image', 'pdf web'], panes: [
           { id: 'main', kind: 'terminal', title: 'MAIN', startupCommand: 'echo __PORTAL_STARTUP__', appearance: { fontSize: 18, foreground: '#00ff00', background: '#111111' } },
-          { id: 'image', kind: 'image', title: 'IMAGE', source: path.join(__dirname, '..', 'assets', 'aperture-science.svg') },
+          { id: 'image', kind: 'image', title: 'IMAGE', source: path.join(configHome, 'image2.svg') },
           { id: 'pdf', kind: 'pdf', title: 'PDF', source: pdf },
           { id: 'web', kind: 'web', title: 'WEB', source: 'https://example.com/' }
         ]
@@ -86,8 +96,9 @@ async function run() {
   fs.writeFileSync(path.join(configHome, 'package.json'), JSON.stringify({ name: 'portal-gui-exit-check', main: 'main.js' }));
   const mockWindowLaunch = checkNewWindow ? "const cp=require('node:child_process'),realSpawn=cp.spawn; cp.spawn=function(file,args,options){if(file===process.execPath&&options?.detached){process.stdout.write('NEW_WINDOW_SPAWN '+JSON.stringify(args)+'\\n');return {pid:12345,on(){return this},unref(){}};}return realSpawn.apply(this,arguments)};" : '';
   fs.writeFileSync(path.join(configHome, 'main.js'), `${mockWindowLaunch} const {ipcMain,BrowserWindow}=require('electron'); ipcMain.on('terminal:write',(_event,value)=>process.stdout.write('WRITE '+JSON.stringify(value)+'\\n')); ipcMain.on('app:quit',()=>process.stdout.write('QUIT\\n')); require(${JSON.stringify(path.join(__dirname, '..', 'src', 'main.js'))}); ${checkWheel ? "setTimeout(()=>BrowserWindow.getAllWindows()[0]?.webContents.send('terminal:data',{id:'main',data:'\\x1b[?1000h\\x1b[?1006h',generation:1}),4000);" : ''}\n`);
-  const child = spawn(electron, [configHome, '--windowed', ...(checkPreset ? ['--preset', '3x2'] : []), `--remote-debugging-port=${port}`], {
-    stdio: 'pipe', env: { ...process.env, APPDATA: configHome, XDG_CONFIG_HOME: configHome }
+  if (checkMedia) fs.appendFileSync(path.join(configHome, 'main.js'), "require('electron').app.whenReady().then(()=>{ipcMain.removeHandler('clipboard:read');ipcMain.handle('clipboard:read',()=> 'https://example.org/');BrowserWindow.getAllWindows()[0]?.webContents.setBackgroundThrottling(false);});\n");
+  const child = spawn(electron, [...(packaged ? ['--config', path.join(configHome, 'portal-console', 'config.json'), `--user-data-dir=${path.join(configHome, 'runtime')}`, '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] : [configHome]), '--windowed', ...(checkPreset ? ['--preset', '3x2'] : []), `--remote-debugging-port=${port}`], {
+    stdio: 'pipe', env: { ...process.env, APPDATA: configHome, XDG_CONFIG_HOME: configHome, PORTAL_CONSOLE_LOG_DIR: path.join(configHome, 'logs') }
   });
   let errors = '';
   let writes = '';
@@ -113,6 +124,8 @@ async function run() {
     const pending = new Map();
     socket.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
+      if (message.method === 'Runtime.exceptionThrown') errors += `\nRenderer exception: ${JSON.stringify(message.params.exceptionDetails)}`;
+      if (message.method === 'Runtime.consoleAPICalled') errors += `\nRenderer console: ${JSON.stringify(message.params.args)}`;
       if (message.id && pending.has(message.id)) {
         pending.get(message.id).resolve(message);
         pending.delete(message.id);
@@ -127,6 +140,7 @@ async function run() {
       pending.set(requestId, { resolve: (message) => { clearTimeout(timeout); resolve(message); } });
       socket.send(JSON.stringify({ id: requestId, method, params }));
     });
+    await send('Runtime.enable');
     let focused;
     for (let attempt = 0; attempt < 60; attempt += 1) {
       focused = await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=${sourceId}] .xterm-helper-textarea')?.focus(); document.activeElement?.className` });
@@ -276,14 +290,91 @@ async function run() {
     if (checkMedia) {
       let state;
       for (let attempt = 0; attempt < 60; attempt += 1) {
-        state = await send('Runtime.evaluate', { expression: "({media:document.querySelectorAll('#screen .media-pane').length, image:document.querySelector('.media-host img')?.naturalWidth, guests:[...document.querySelectorAll('#screen webview')].map(view=>({id:view.getWebContentsId?.(),url:view.getURL?.()}))})", returnByValue: true });
-        if (state.result?.result?.value?.media === 3 && state.result.result.value.image > 0 && state.result.result.value.guests?.[0]?.id > 0 && state.result.result.value.guests[0].url?.startsWith('file:') && state.result.result.value.guests[1]?.id > 0 && state.result.result.value.guests[1].url?.startsWith('https:') && writes.includes('__PORTAL_STARTUP__')) break;
+        state = await send('Runtime.evaluate', { expression: "({media:document.querySelectorAll('#screen .media-pane').length, image:document.querySelector('.media-host img')?.naturalWidth, pdf:document.querySelector('.media-pdf canvas')?.width, page:document.querySelector('.media-pdf')?.dataset.page, startup:document.querySelector('[data-pane=main] .xterm-rows')?.textContent.includes('__PORTAL_STARTUP__'),status:[...document.querySelectorAll('.media-status')].map(e=>e.textContent), guests:[...document.querySelectorAll('#screen webview')].map(view=>({id:view.getWebContentsId?.(),url:view.getURL?.()}))})", returnByValue: true });
+        if (state.result?.result?.value?.media === 3 && state.result.result.value.image > 0 && state.result.result.value.pdf > 0 && state.result.result.value.page === '1' && state.result.result.value.guests?.[0]?.id > 0 && state.result.result.value.guests[0].url?.startsWith('https:') && state.result.result.value.startup) break;
         await new Promise((resolve) => setTimeout(resolve, 250));
       }
-      if (state.result?.result?.value?.media !== 3 || !state.result.result.value.image || !state.result.result.value.guests?.[0]?.url?.startsWith('file:') || !state.result.result.value.guests?.[1]?.url?.startsWith('https:') || !writes.includes('__PORTAL_STARTUP__')) {
+      if (state.result?.result?.value?.media !== 3 || !state.result.result.value.image || !state.result.result.value.pdf || state.result.result.value.page !== '1' || !state.result.result.value.guests?.[0]?.url?.startsWith('https:') || !state.result.result.value.startup) {
         throw new Error(`Media/startup did not initialize: ${JSON.stringify(state)} writes=${writes} errors=${errors}`);
       }
+      const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true })).result?.result?.value;
+      const wait = async (expression, description) => {
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          if (await evaluate(expression)) return;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        throw new Error(`Media check failed: ${description}; ${JSON.stringify(await evaluate("[...document.querySelectorAll('.media-status')].map(e=>e.textContent)"))}; ${errors}`);
+      };
+      const key = async (key, code, modifiers = 0) => {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers });
+      };
+      await evaluate("document.querySelector('[data-pane=image]').focus()");
+      await key('ArrowRight', 'ArrowRight');
+      await wait("document.querySelector('[data-pane=image]').dataset.source.endsWith('image10.svg')", 'next image');
+      await key('ArrowLeft', 'ArrowLeft');
+      await wait("document.querySelector('[data-pane=image]').dataset.source.endsWith('image2.svg')", 'previous image');
+      await key('s', 'KeyS');
+      await wait("document.querySelector('[data-pane=image]').dataset.sort==='modified:ascending'", 'image file ordering');
+      await key('S', 'KeyS', 8);
+      await wait("document.querySelector('[data-pane=image]').dataset.sort==='modified:descending'", 'reverse file ordering');
+      await key('1', 'Digit1');
+      await wait("parseFloat(document.querySelector('[data-pane=image] img').style.width)===document.querySelector('[data-pane=image] img').naturalWidth", 'actual image size');
+      await key('F11', 'F11');
+      await wait("document.querySelector('[data-pane=image]').classList.contains('pane-maximized')", 'pane maximization');
+      await key('F11', 'F11');
+      await evaluate("document.querySelector('[data-pane=pdf]').focus()");
+      await key('ArrowDown', 'ArrowDown');
+      await wait("document.querySelector('[data-pane=pdf]').dataset.page==='2'", 'PDF next page');
+      await key('ArrowUp', 'ArrowUp');
+      await wait("document.querySelector('[data-pane=pdf]').dataset.page==='1'", 'PDF previous page');
+      await key('d', 'KeyD');
+      await key('ArrowLeft', 'ArrowLeft');
+      await wait("document.querySelector('[data-pane=pdf]').dataset.page==='2'", 'RTL PDF left means next');
+      await key('ArrowRight', 'ArrowRight', 2);
+      await wait("document.querySelector('[data-pane=pdf]').dataset.source.endsWith('sample2.pdf') && document.querySelector('[data-pane=pdf]').dataset.page==='1'", 'next PDF file');
+      const addressNative = await evaluate("(()=>{const a=document.querySelector('.media-web input[type=url]');a.focus();return a.dispatchEvent(new KeyboardEvent('keydown',{key:'v',code:'KeyV',ctrlKey:true,bubbles:true,cancelable:true}))})()");
+      if (!addressNative) throw new Error('Browser address clipboard shortcut was intercepted by the terminal');
+      await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F11'})");
+      await wait("document.querySelector('.media-web').classList.contains('pane-maximized')", 'web guest F11 maximization');
+      await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F11'})");
+      await wait("!document.querySelector('.media-web').classList.contains('pane-maximized')", 'web guest restore');
+      await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F1'})");
+      await wait("document.querySelector('#help-dialog').open", 'help from embedded browser');
+      await evaluate("document.querySelector('#help-close').click();document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'1',modifiers:['control']})");
+      await wait("document.activeElement?.closest('[data-pane]')?.dataset.pane==='main'", 'browser-to-terminal selection');
+      const recorded = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `(async()=>{
+        const canvas=document.createElement('canvas');canvas.width=canvas.height=32;
+        const context=canvas.getContext('2d'), stream=canvas.captureStream(10), chunks=[];
+        const recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp8'});
+        recorder.ondataavailable=e=>chunks.push(e.data);
+        const stopped=new Promise(resolve=>recorder.onstop=resolve);recorder.start();
+        for(let i=0;i<6;i++){context.fillStyle=i%2?'#ff9d20':'#050301';context.fillRect(0,0,32,32);await new Promise(r=>setTimeout(r,100));}
+        recorder.stop();await stopped;stream.getTracks().forEach(t=>t.stop());
+        return btoa(String.fromCharCode(...new Uint8Array(await new Blob(chunks).arrayBuffer())));
+      })()` });
+      if (!recorded.result?.result?.value) throw new Error(`Could not record synthetic test video: ${JSON.stringify(recorded)}`);
+      const video = path.join(configHome, 'video1.webm');
+      fs.writeFileSync(video, Buffer.from(recorded.result.result.value, 'base64'));
+      fs.copyFileSync(video, path.join(configHome, 'video2.webm'));
+      await evaluate("document.querySelector('[data-pane=main] .xterm-helper-textarea').focus()");
+      await typeKeys(`portal-media "${video}"`);
+      await wait("document.querySelector('.media-video video')?.readyState>=1", 'portal-media inferred video');
+      await evaluate("document.querySelector('.media-video').focus()");
+      await key('ArrowUp', 'ArrowUp');
+      await wait("document.querySelector('.media-video video').volume>0.5", 'video volume');
+      await key('ArrowRight', 'ArrowRight');
+      await wait("document.querySelector('.media-video video').currentTime>0.05", 'video seek');
+      await key('ArrowRight', 'ArrowRight', 2);
+      await wait("document.querySelector('.media-video video').src.endsWith('video2.webm')", 'next video file');
+      await evaluate("document.querySelector('[data-pane=main] .xterm-helper-textarea').focus()");
+      await typeKeys(`portal-media "${path.join(configHome, 'unknown.extension')}"`);
+      await wait("document.querySelector('#media-dialog').open && document.querySelector('#media-source').value.endsWith('unknown.extension')", 'manual kind fallback');
+      await evaluate("document.querySelector('#media-cancel').click();document.querySelector('[data-pane=main] .xterm-helper-textarea').focus()");
+      console.log('Image navigation/sort/zoom, PDF pages/RTL/files, video controls, inferred portal-media and manual fallback verified');
       await typeKeys('portal-preset 2x2');
+      await wait("document.querySelector('#preset-dialog').open", 'close added video pane');
+      await evaluate("document.querySelector('#preset-selection').value='5';document.querySelector('#preset-form').requestSubmit()");
       let replacement;
       for (let attempt = 0; attempt < 40; attempt += 1) {
         replacement = await send('Runtime.evaluate', { expression: "document.querySelector('#replace-dialog').open" });
@@ -461,8 +552,12 @@ async function run() {
     socket.close();
     console.log(exited ? 'GUI exited after portal-exit' : 'GUI recognized portal-exit');
   } finally {
-    if (!exited) child.kill();
-    fs.rmSync(configHome, { recursive: true, force: true });
+    if (!exited) {
+      child.kill();
+      for (let attempt = 0; attempt < 30 && !exited; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    try { fs.rmSync(configHome, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 }); }
+    catch (error) { console.error(`Could not clean GUI test directory: ${error.message}`); }
   }
 }
 

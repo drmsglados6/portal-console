@@ -4,6 +4,8 @@ function helpSections(frontend, config) {
     { title: 'INTERNAL COMMANDS (at a shell prompt)', entries: [
       ['portal-help', gui ? 'Open this help; Esc or Close returns to the same terminal.' : 'Open paged help; Q/Esc/Enter returns to the same terminal.'],
       ['portal-restart', 'Restart the current pane shell. Its running programs stop; other panes continue.'],
+      ['portal-media SOURCE', gui ? 'Open a new media pane; http(s) defaults to web, local files use their extension. Quote paths containing spaces.' : 'Graphical media requires the GUI; use w3m URL in a text terminal.'],
+      ['portal-media --kind TYPE --source SOURCE', 'Override detection with image/pdf/video/web. A linked PDF or video needs --kind pdf/video because URLs default to web.'],
       ['portal-exit', 'Quit the entire application and stop all of its terminal sessions.'],
       ['portal-preset NAME', gui ? 'Change modern layout live. Existing panes are retained; select panes to close when reducing their number.' : 'Live layout changes are GUI-only. Choose the layout at startup with --preset NAME.']
     ] },
@@ -43,7 +45,7 @@ function helpSections(frontend, config) {
       ...gui ? [
         ['F2 / Ctrl+Shift+2', 'Switch to original layout; F3 / Ctrl+Shift+3 switches to modern.'],
         ['Ctrl+Shift+N / Mac Cmd+N', 'Open an independent application window; the + WINDOW button does the same.'],
-        ['F11', 'Toggle fullscreen.'],
+        ['F11', 'Terminal focus toggles app fullscreen; media focus maximizes/restores its pane.'],
         ['Close-window selection', config.controls.closeSelectionSyntax === 'regex' ? 'Full-match regex on visible pane numbers, e.g. 1|3|5.' : '2,5 / 2-4 / !3 / !(2-4). The selected count must match the panes to close.']
       ] : [
         ['--headless', 'Force ANSI mode. Linux packages also choose it automatically without DISPLAY/WAYLAND_DISPLAY.'],
@@ -57,7 +59,7 @@ function helpSections(frontend, config) {
       ['Ctrl++ / Ctrl+- / Ctrl+0', 'Increase / decrease / reset terminal font size (including numpad keys).'],
       ['Mouse wheel / Alt+wheel', 'Scroll local shell history; alternate-screen apps receive wheel events. Alt+wheel always defers to the app.'],
       ['CRT button', 'Adjust glow, scanlines, vignette and glass. Changes are window-local; appearance.crt stores startup defaults.'],
-      ['kind: image / pdf / web', 'Display an image, PDF or web page via a configured source path/URL.'],
+      ['kind: image / pdf / video / web', 'Display configured media, or use portal-media to append a pane without restarting terminals.'],
       ['Pane appearance / startupCommand', 'Set per-pane font/colors and a command for newly created or manually restarted panes.'],
       ['w3m URL', 'A text browser can run inside a terminal too. Ubuntu: sudo apt install w3m; macOS: brew install w3m; MSYS2: pacman -S w3m. For SSH, install on the destination host.']
     ] : [
@@ -68,16 +70,19 @@ function helpSections(frontend, config) {
       ['Media / clipboard / font', 'Images, PDF and web panes are placeholders; host-terminal clipboard and font settings are used.'],
       ['Mouse / CRT / sound', 'Mouse forwarding, graphical CRT effects and ending audio are not available in ANSI mode.']
     ] },
-    ...gui ? [{ title: 'HOW TO OPEN THE BUILT-IN BROWSER / VIEWER', entries: [
-      ['1. Create a config', 'Save portal-console.media.example.json from the repository as media.json. It has a terminal on the left and a web browser on the right.'],
-      ['2. Launch the GUI', 'portal-console --mode modern --config ./media.json. In a source checkout: npm start -- --config ./portal-console.media.example.json.'],
-      ['Windows NSIS installation', 'Use & "$env:LOCALAPPDATA/Programs/portal-console/portal-console.exe" --mode modern --config "$HOME/media.json" in PowerShell.'],
-      ['Web pane', 'Set kind to web and source to an https:// or http:// URL. No portal-browser / portal-open launch command exists yet.'],
-      ['Browser controls', 'Click the URL field, enter a complete http(s) URL and press Enter. The arrow buttons go back/forward; the circular arrow reloads. Leave command mode with Esc first.'],
-      ['PDF pane', 'Keep the same pane id, set kind to pdf, and source to an existing absolute file path, e.g. C:/docs/manual.pdf or /path/to/manual.pdf.'],
-      ['Image pane', 'Set kind to image and source to an existing absolute image path. Images fit the pane; the URL toolbar is for web panes only.'],
-      ['Editing the config', 'Keep columns/rows/areas consistent with pane ids. Relaunch with the modified config; modern is required to display media panes.'],
-      ['Headless alternative', 'The graphical viewer is GUI-only. Use w3m URL in a headless terminal instead.']
+    ...gui ? [{ title: 'MEDIA: OPENING, FILES AND CONTROLS', entries: [
+      ['Open an image/PDF/video', 'At a shell prompt: portal-media "C:/docs/manual.pdf" or portal-media "/path/to/image.png". Use absolute paths on the machine running Portal Console, not SSH-remote paths.'],
+      ['Open a web page', 'portal-media https://example.com. --kind can override URL detection, e.g. portal-media https://example.com/book.pdf --kind pdf.'],
+      ['Manual selection', 'portal-media with no source, or + MEDIA, opens the source/viewer chooser. Failed inference retains the source for manual selection.'],
+      ['Placement / F11 / Close', 'Switches original to modern if needed and appends a column. F11/MAX maximizes inside the app; F11 restores. CLOSE removes media without stopping terminals.'],
+      ['Image Left/Right', 'Previous/next local image in the same folder. F fits, 1 uses actual pixels, +/- zooms.'],
+      ['File ordering S / Shift+S', 'Cycle NAME/MODIFIED/SIZE or reverse the order. Toolbar controls do the same. Local files only.'],
+      ['PDF arrows', 'Up/Down or PageUp/PageDown: previous/next page. Left/Right follows media.pdfArrowDirection. D toggles LTR/RTL; page input jumps directly.'],
+      ['PDF/video Ctrl+Left/Right', 'Previous/next local file, independent of PDF page direction.'],
+      ['Video arrows / Space', 'Left/Right seeks by media.videoSeekSeconds (also editable in toolbar). Up/Down changes volume by media.videoVolumeStep. Space plays/pauses.'],
+      ['Browser controls', 'URL input and BACK/FORWARD/RELOAD. This is the internal browser with a separate profile; OS browser bookmarks/extensions and native app docking are future backends.'],
+      ['Saved settings', 'media.fileSort / descending / pdfArrowDirection / videoSeekSeconds / videoVolumeStep are startup defaults. Image backend is internal in this version.'],
+      ['Config startup', 'portal-console --config media.json still works. The repository has portal-console.media.example.json. Headless displays placeholders; use w3m for browsing.']
     ] }] : [],
     { title: 'ENDING PLAYBACK', entries: [
       [gui ? 'Command mode E' : 'Ctrl+B then c, E', 'Start ending playback; headless playback requires original mode.'],

@@ -9,6 +9,12 @@ const output = path.join(root, 'dist');
 
 fs.mkdirSync(output, { recursive: true });
 fs.copyFileSync(path.join(root, 'src/renderer/index.html'), path.join(output, 'index.html'));
+const pdf = path.join(root, 'node_modules/pdfjs-dist');
+esbuild.buildSync({ entryPoints: [path.join(pdf, 'build/pdf.worker.mjs')], bundle: true,
+  outfile: path.join(output, 'pdf-worker.js'), platform: 'browser', format: 'iife', minify: true });
+for (const directory of ['cmaps', 'standard_fonts', 'wasm']) {
+  fs.cpSync(path.join(pdf, directory), path.join(output, 'pdf', directory), { recursive: true });
+}
 
 // Extend electron-builder's own hooks so alternatives, sandbox and AppArmor
 // setup stay aligned with the installed builder version.

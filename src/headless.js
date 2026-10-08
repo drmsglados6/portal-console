@@ -427,6 +427,10 @@ async function run(argv = []) {
       pane.child?.write('\x03');
       pane.commandInput.reset();
       showHelp();
+    } else if (command?.type === 'media') {
+      pane.child?.write('\x03'); pane.commandInput.reset(); commandMode = true;
+      commandStatus = command.error || 'Media panes require the GUI. Use w3m URL for a text browser. ? HELP';
+      draw();
     } else if (command?.type === 'preset') {
       pane.child?.write('\x03');
       pane.commandInput.reset();

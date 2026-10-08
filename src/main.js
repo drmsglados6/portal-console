@@ -1,8 +1,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { spawn } = require('node:child_process');
-const { pathToFileURL } = require('node:url');
-const { app, BrowserWindow, clipboard, globalShortcut, ipcMain } = require('electron');
+const { app, BrowserWindow, clipboard, globalShortcut, ipcMain, net, dialog } = require('electron');
 const pty = require('node-pty');
 const { loadConfig, presetNames, resolvePreset, validate } = require('./config');
 const { imageToAscii } = require('./ascii-art');
@@ -11,6 +10,7 @@ const { importPortalCredits } = require('./portal-import');
 const { refreshEnvironment, resolveConsole, spawnOptions } = require('./shell');
 const { newWindowArgs } = require('./window-launch');
 const { readInstallation } = require('./installation');
+const { normalizeSource, resolveMedia } = require('./media');
 
 const sessions = new Map();
 const logoCache = new Map();
@@ -127,7 +127,24 @@ function ownedSession(event, id) {
 
 function installIpc() {
   app.on('web-contents-created', (_event, contents) => {
-    if (contents.getType() === 'webview') contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    if (contents.getType() === 'webview') {
+      contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      contents.on('before-input-event', (event, input) => {
+        if (input.type !== 'keyDown') return;
+        if (input.key === 'F11') {
+          event.preventDefault();
+          if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('media:maximize', contents.id);
+        } else {
+          let request;
+          if (input.key === 'F1' || input.control && input.shift && input.code === 'KeyH') request = { action: 'help' };
+          else if (input.control && input.key === 'Tab') request = { action: 'cycle', value: input.shift ? -1 : 1 };
+          else if (input.control && !input.shift && ['1', '2'].includes(input.key)) request = { action: 'select', value: Number(input.key) };
+          if (request && mainWindow && !mainWindow.webContents.isDestroyed()) {
+            event.preventDefault(); mainWindow.webContents.send('media:control', { guestId: contents.id, ...request });
+          }
+        }
+      });
+    }
   });
   ipcMain.handle('app:config', () => config);
   ipcMain.handle('app:new-window', (event) => {
@@ -149,11 +166,48 @@ function installIpc() {
   ipcMain.handle('app:media-url', (event, id) => {
     if (event.sender !== mainWindow?.webContents) throw new Error('Invalid media request');
     const pane = config.modern.panes.find((candidate) => candidate.id === id);
-    if (!pane || !['image', 'pdf', 'web'].includes(pane.kind)) throw new Error('Media pane not found');
-    if (pane.kind === 'web') return pane.source;
-    const file = path.resolve(pane.source);
-    if (!fs.statSync(file).isFile()) throw new Error('Media source is not a file');
-    return pathToFileURL(file).href;
+    if (!pane || !['image', 'pdf', 'video', 'web'].includes(pane.kind)) throw new Error('Media pane not found');
+    return normalizeSource(pane.kind, pane.source).url;
+  });
+  ipcMain.handle('media:resolve', async (event, { kind, source, sort = config.media.fileSort, descending = config.media.descending } = {}) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid media request');
+    const info = resolveMedia(kind, source, sort, descending);
+    if (kind === 'image' && !info.remote && /\.tiff?$/i.test(info.source)) {
+      const png = await require('sharp')(info.source).png().toBuffer();
+      info.url = `data:image/png;base64,${png.toString('base64')}`;
+    }
+    return info;
+  });
+  ipcMain.handle('media:pdf-data', async (event, source) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid PDF request');
+    const info = normalizeSource('pdf', source);
+    const limit = 128 * 1024 * 1024;
+    let buffer;
+    if (info.remote) {
+      const response = await net.fetch(info.url);
+      if (!response.ok) throw new Error(`PDF request failed: ${response.status}`);
+      if (Number(response.headers.get('content-length')) > limit) { await response.body.cancel(); throw new Error('PDF exceeds 128 MiB'); }
+      const reader = response.body.getReader();
+      const chunks = [];
+      let bytes = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.length;
+        if (bytes > limit) { await reader.cancel(); throw new Error('PDF exceeds 128 MiB'); }
+        chunks.push(Buffer.from(value));
+      }
+      buffer = Buffer.concat(chunks);
+    } else {
+      if (fs.statSync(info.source).size > limit) throw new Error('PDF exceeds 128 MiB');
+      buffer = await fs.promises.readFile(info.source);
+    }
+    return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  });
+  ipcMain.handle('media:choose-file', async (event) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid file chooser request');
+    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], title: 'Open image, PDF or video' });
+    return result.canceled ? null : result.filePaths[0];
   });
   ipcMain.handle('app:set-layout', (event, layout) => {
     if (event.sender !== mainWindow?.webContents) throw new Error('Invalid layout request');

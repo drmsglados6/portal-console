@@ -44,6 +44,14 @@
       "glass": 0.12
     }
   },
+  "media": {
+    "imageViewer": "internal",
+    "fileSort": "name",
+    "descending": false,
+    "pdfArrowDirection": "ltr",
+    "videoSeekSeconds": 5,
+    "videoVolumeStep": 0.05
+  },
   "ending": {
     "source": "auto",
     "scene": null,

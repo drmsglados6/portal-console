@@ -6,6 +6,8 @@ const { remapPreset } = require('../preset-switch');
 const { selectWindowNumbers } = require('../window-selection');
 const { wheelScrollHandler } = require('../wheel-scroll');
 const { helpSections } = require('../help');
+const { appendMediaPane, removeMediaPane, inferMediaKind } = require('../media-command');
+const { createMediaView } = require('./media-view');
 
 const screen = document.querySelector('#screen');
 const modeIndicator = document.querySelector('#mode-indicator');
@@ -20,6 +22,7 @@ const presetDialog = document.querySelector('#preset-dialog');
 const helpDialog = document.querySelector('#help-dialog');
 const replaceDialog = document.querySelector('#replace-dialog');
 const crtDialog = document.querySelector('#crt-dialog');
+const mediaDialog = document.querySelector('#media-dialog');
 const terminalTheme = {
   background: '#050301', foreground: '#ff9d20', cursor: '#ffc168', cursorAccent: '#050301',
   selectionBackground: '#7a430e99', black: '#050301', red: '#ff7920', green: '#d88319', yellow: '#ffc168',
@@ -47,6 +50,17 @@ let endingVolume = 0.1;
 let endingArtFitKey = '';
 let switchingPreset = false;
 let queuedPreset;
+let mediaDialogSourceId;
+
+function openMediaDialog(source = '', error = '', kind = 'auto') {
+  if (mediaDialog.open) return;
+  mediaDialogSourceId = focusedId;
+  document.querySelector('#media-source').value = source;
+  document.querySelector('#media-kind').value = kind;
+  document.querySelector('#media-error').textContent = error;
+  mediaDialog.showModal();
+  document.querySelector('#media-source').focus();
+}
 
 function applyCrt() {
   const crt = config.appearance.crt;
@@ -131,7 +145,7 @@ function showHelp(sourceId, cancelInput = true) {
     helpDialog.removeEventListener('cancel', cancel);
     helpDialog.removeEventListener('close', closed);
     if (cancelInput) panes.get(sourceId)?.commandInput.reset();
-    if (panes.get(sourceId)?.element.isConnected) focusPane(sourceId);
+    if ((panes.get(sourceId) || media.get(sourceId))?.element.isConnected) focusPane(sourceId);
   };
   document.querySelector('#help-close').addEventListener('click', close);
   helpDialog.addEventListener('cancel', cancel);
@@ -234,7 +248,7 @@ async function switchPreset(name, sourceId) {
       }
       if (pane) await window.portalConsole.close(id);
       const view = media.get(id);
-      view?.element.remove();
+      view?.dispose();
       media.delete(id);
       const logo = logos.get(id);
       logo?.observer.disconnect();
@@ -306,71 +320,52 @@ function logoElement(id, title) {
   return pane;
 }
 
-async function mediaElement(spec) {
+async function mediaElement(spec, prepared) {
   const existing = media.get(spec.id);
   if (existing?.spec.kind === spec.kind && existing.spec.source === spec.source) return existing.element;
-  existing?.element.remove();
-  const pane = document.createElement('section');
-  pane.className = 'pane media-pane';
-  pane.dataset.pane = spec.id;
-  const heading = document.createElement('div');
-  heading.className = 'pane-title';
-  heading.textContent = spec.title || spec.id;
-  pane.append(heading);
-  const host = document.createElement('div');
-  host.className = 'media-host';
-  pane.append(host);
-  media.set(spec.id, { spec, element: pane });
+  existing?.dispose();
+  const view = createMediaView(spec, config.media, { focus: focusPane, close: closeMedia }, prepared);
+  media.set(spec.id, view);
+  return view.element;
+}
+
+async function openMedia(command, sourceId, cancelInput = true) {
+  if (cancelInput && sourceId) window.portalConsole.write(sourceId, '\x03');
+  if (!command.source || command.error && command.source) { openMediaDialog(command.source || '', command.error || '', command.kind || 'auto'); return; }
+  if (command.error) { showStatus(command.error); return; }
+  if (switchingPreset || endingPlayback) { showStatus('Layout is busy; retry portal-media after it finishes.'); return; }
+  switchingPreset = true;
   try {
-    const url = await window.portalConsole.mediaUrl(spec.id);
-    if (spec.kind === 'image') {
-      const image = document.createElement('img');
-      image.alt = spec.title || spec.id;
-      image.src = url;
-      host.append(image);
-    } else {
-      const view = document.createElement('webview');
-      view.setAttribute('webpreferences', 'sandbox=yes,nodeIntegration=no,contextIsolation=yes');
-      view.src = url;
-      if (spec.kind === 'web') {
-        const toolbar = document.createElement('div');
-        toolbar.className = 'media-toolbar';
-        const address = document.createElement('input');
-        address.value = url;
-        address.setAttribute('aria-label', 'Web address');
-        const back = document.createElement('button');
-        back.textContent = '←';
-        back.addEventListener('click', () => { if (view.canGoBack()) view.goBack(); });
-        const forward = document.createElement('button');
-        forward.textContent = '→';
-        forward.addEventListener('click', () => { if (view.canGoForward()) view.goForward(); });
-        const reload = document.createElement('button');
-        reload.textContent = '↻';
-        reload.addEventListener('click', () => view.reload());
-        address.addEventListener('keydown', (event) => {
-          if (event.key !== 'Enter') return;
-          event.stopPropagation();
-          try {
-            const destination = new URL(address.value);
-            if (!['http:', 'https:'].includes(destination.protocol)) throw new Error('Only http(s) URLs are supported');
-            view.loadURL(destination.href);
-          } catch { address.setCustomValidity('Enter a valid http(s) URL'); address.reportValidity(); }
-        });
-        address.addEventListener('input', () => address.setCustomValidity(''));
-        view.addEventListener('did-navigate', (event) => { address.value = event.url; });
-        toolbar.append(back, forward, reload, address);
-        pane.prepend(toolbar);
-      }
-      view.addEventListener('did-fail-load', (event) => {
-        if (event.errorCode === -3) return;
-        heading.textContent = `${spec.title || spec.id} — LOAD FAILED`;
-      });
-      host.append(view);
-    }
-  } catch (error) {
-    host.textContent = `COULD NOT OPEN ${spec.kind.toUpperCase()}: ${error.message}`;
+    const info = await window.portalConsole.resolveMedia({ kind: command.kind, source: command.source });
+    const base = mode === 'original' ? {
+      columns: ['1fr', '1fr'], rows: ['1fr', '1fr'], areas: ['main aux', 'main logo'],
+      panes: [{ id: 'main', title: 'PRIMARY TERMINAL', kind: 'terminal' }, { id: 'aux', title: 'AUXILIARY TERMINAL', kind: 'terminal' }, { id: 'logo', title: 'APERTURE SCIENCE', kind: 'logo' }]
+    } : config.modern;
+    const layout = appendMediaPane(base, { kind: command.kind, source: info.source }, [...panes.keys(), ...media.keys(), ...logos.keys()]);
+    await window.portalConsole.setLayout(layout);
+    config.modern = layout;
+    const spec = layout.panes.at(-1);
+    await mediaElement(spec, info);
+    await renderLayout('modern');
+    focusPane(spec.id);
+  } catch (error) { openMediaDialog(command.source, `MEDIA ERROR: ${error.message}`, command.kind); }
+  finally {
+    switchingPreset = false;
+    if (queuedPreset) { const next = queuedPreset; queuedPreset = null; switchPreset(next.name, next.sourceId); }
   }
-  return pane;
+}
+
+async function closeMedia(id) {
+  if (switchingPreset) { showStatus('Layout is busy; retry closing the media pane.'); return; }
+  switchingPreset = true;
+  try {
+    const layout = removeMediaPane(config.modern, id);
+    await window.portalConsole.setLayout(layout);
+    config.modern = layout;
+    media.get(id)?.dispose(); media.delete(id);
+    await renderLayout('modern');
+  } catch (error) { showStatus(error.message); }
+  finally { switchingPreset = false; }
 }
 
 function paneFontSize(spec) {
@@ -428,9 +423,11 @@ async function terminalElement(spec) {
     else if (command?.type === 'preset') switchPreset(command.name, spec.id);
     else if (command?.type === 'help') showHelp(spec.id);
     else if (command?.type === 'restart') { focusPane(spec.id); restartFocusedTerminal(); }
+    else if (command?.type === 'media') openMedia(command, spec.id);
     else window.portalConsole.write(spec.id, data);
   });
   pane.addEventListener('pointerdown', () => focusPane(spec.id));
+  pane.addEventListener('focusin', () => focusPane(spec.id, false));
   pane.addEventListener('contextmenu', (event) => {
     event.preventDefault();
     focusPane(spec.id);
@@ -461,12 +458,14 @@ function fitPane(id) {
   });
 }
 
-function focusPane(id) {
+function focusPane(id, focusControl = true) {
   const pane = panes.get(id);
-  if (!pane) return;
+  const view = media.get(id);
+  if (!pane && !view) return;
+  for (const [otherId, other] of media) if (otherId !== id) other.restoreMaximize();
   focusedId = id;
   document.querySelectorAll('.pane').forEach((element) => element.classList.toggle('focused', element.dataset.pane === id));
-  pane.terminal.focus();
+  if (focusControl) { if (pane) pane.terminal.focus(); else view.focus(); }
 }
 
 function terminalSpecs() {
@@ -520,12 +519,13 @@ async function renderLayout(nextMode) {
       element.style.gridArea = spec.id;
       if (element.parentElement !== screen) screen.append(element);
     }
-    for (const id of media.keys()) if (!visibleIds.has(id)) media.delete(id);
+    for (const id of media.keys()) if (!visibleIds.has(id)) { media.get(id).dispose(); media.delete(id); }
   }
   requestAnimationFrame(() => {
     for (const id of panes.keys()) fitPane(id);
     for (const logo of logos.values()) logo.update();
-    focusPane(panes.has(focusedId) && panes.get(focusedId).element.isConnected ? focusedId : [...panes.keys()].find((id) => panes.get(id).element.isConnected));
+    const active = panes.get(focusedId) || media.get(focusedId);
+    focusPane(active?.element.isConnected ? focusedId : [...panes.keys()].find((id) => panes.get(id).element.isConnected));
   });
 }
 
@@ -533,7 +533,7 @@ function cycleFocus(reverse = false) {
   const visible = [...panes.keys()].filter((id) => panes.get(id).element.isConnected);
   const current = visible.indexOf(focusedId);
   const offset = reverse ? -1 : 1;
-  focusPane(visible[(current + offset + visible.length) % visible.length]);
+  focusPane(visible[current < 0 ? reverse ? visible.length - 1 : 0 : (current + offset + visible.length) % visible.length]);
 }
 
 function setFontSize(value) {
@@ -813,9 +813,16 @@ async function restartFocusedTerminal() {
 
 function bindKeys() {
   window.addEventListener('keydown', (event) => {
-    if (presetDialog.open || helpDialog.open || replaceDialog.open || crtDialog.open) return;
+    if (presetDialog.open || helpDialog.open || replaceDialog.open || crtDialog.open || mediaDialog.open) return;
+    const nativeInput = event.target instanceof HTMLElement && event.target.matches('input, select, textarea, [contenteditable="true"]') && !event.target.classList.contains('xterm-helper-textarea');
+    const helpKey = event.key === 'F1' || event.ctrlKey && event.shiftKey && event.code === 'KeyH';
+    if (nativeInput && !helpKey && event.key !== 'F11' && !(event.key === 'Escape' && commandMode)) return;
+    const view = media.get(focusedId);
+    if (!helpKey && !commandMode && !endingPlayback && view?.element.isConnected && view.handleKey(event)) {
+      event.preventDefault(); event.stopPropagation(); return;
+    }
     let handled = true;
-    if (event.key === 'F1' || event.ctrlKey && event.shiftKey && event.code === 'KeyH') showHelp(focusedId, false);
+    if (helpKey) showHelp(focusedId, false);
     else if (endingPlayback && event.code === 'Space') pauseEndingPlayback();
     else if (endingPlayback && (event.key === 'Escape' || event.key.toLowerCase() === 'q')) stopEndingPlayback();
     else if (endingPlayback && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
@@ -868,6 +875,17 @@ function bindKeys() {
 
 async function start() {
   config = await window.portalConsole.config();
+  window.portalConsole.onMediaMaximize((guestId) => {
+    for (const view of media.values()) if (view.guestId() === guestId) { focusPane(view.spec.id, false); view.toggleMaximize(true); break; }
+  });
+  window.portalConsole.onMediaControl(({ guestId, action, value }) => {
+    const view = [...media.values()].find((candidate) => candidate.guestId() === guestId);
+    if (!view) return;
+    focusPane(view.spec.id, false);
+    if (action === 'help') showHelp(view.spec.id, false);
+    else if (action === 'cycle') cycleFocus(value === -1);
+    else if (action === 'select') focusPane(value === 1 ? 'main' : 'aux');
+  });
   document.body.classList.toggle('software-rendering', !config.appearance.hardwareAcceleration);
   applyCrt();
   mode = config.mode;
@@ -921,6 +939,22 @@ async function start() {
   }));
   document.querySelector('#crt-close').addEventListener('click', () => crtDialog.close());
   crtDialog.addEventListener('close', () => { if (!commandMode && !endingPlayback) panes.get(focusedId)?.terminal.focus(); });
+  document.querySelector('#media-button').addEventListener('click', () => openMediaDialog());
+  document.querySelector('#media-cancel').addEventListener('click', () => mediaDialog.close());
+  document.querySelector('#media-browse').addEventListener('click', async () => {
+    try { const source = await window.portalConsole.chooseMediaFile(); if (source) document.querySelector('#media-source').value = source; }
+    catch (error) { document.querySelector('#media-error').textContent = error.message; }
+  });
+  document.querySelector('#media-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const source = document.querySelector('#media-source').value;
+    try {
+      const choice = document.querySelector('#media-kind').value;
+      const kind = choice === 'auto' ? inferMediaKind(source) : choice;
+      mediaDialog.close();
+      openMedia({ kind, source }, mediaDialogSourceId, false);
+    } catch (error) { document.querySelector('#media-error').textContent = error.message; }
+  });
   renderLayout(mode);
 }
 

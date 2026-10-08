@@ -30,6 +30,10 @@ const DEFAULT_CONFIG = Object.freeze({
   controls: {
     closeSelectionSyntax: 'ranges'
   },
+  media: {
+    imageViewer: 'internal', fileSort: 'name', descending: false,
+    pdfArrowDirection: 'ltr', videoSeekSeconds: 5, videoVolumeStep: 0.05
+  },
   ending: {
     source: 'auto',
     scene: null,
@@ -223,6 +227,11 @@ function validate(config) {
   }
   if (!Number.isInteger(crt.scanlineSpacing) || crt.scanlineSpacing < 2 || crt.scanlineSpacing > 8) throw new Error('appearance.crt.scanlineSpacing must be an integer between 2 and 8');
   if (!['ranges', 'regex'].includes(config.controls?.closeSelectionSyntax)) throw new Error('controls.closeSelectionSyntax must be ranges or regex');
+  if (!config.media || config.media.imageViewer !== 'internal') throw new Error('media.imageViewer must be internal; native embedded viewers are not implemented yet');
+  if (!['name', 'modified', 'size'].includes(config.media.fileSort) || typeof config.media.descending !== 'boolean') throw new Error('invalid media file ordering');
+  if (!['ltr', 'rtl'].includes(config.media.pdfArrowDirection)) throw new Error('media.pdfArrowDirection must be ltr or rtl');
+  if (!(Number.isFinite(config.media.videoSeekSeconds) && config.media.videoSeekSeconds >= 0.1 && config.media.videoSeekSeconds <= 3600)) throw new Error('media.videoSeekSeconds must be between 0.1 and 3600');
+  if (!(Number.isFinite(config.media.videoVolumeStep) && config.media.videoVolumeStep > 0 && config.media.videoVolumeStep <= 1)) throw new Error('media.videoVolumeStep must be between 0 and 1');
   if (!config.ending || (config.ending.scene !== null && typeof config.ending.scene !== 'string')) throw new Error('ending.scene must be a path or null');
   if (!['auto', 'portal', 'demo', 'scene'].includes(config.ending.source)) throw new Error('ending.source must be auto, portal, demo, or scene');
   if (config.ending.portalPath !== null && typeof config.ending.portalPath !== 'string') throw new Error('ending.portalPath must be a path or null');
@@ -242,8 +251,8 @@ function validate(config) {
   const ids = new Set();
   for (const pane of modern.panes) {
     if (!pane.id || ids.has(pane.id)) throw new Error('modern pane ids must be present and unique');
-    if (!['terminal', 'logo', 'image', 'pdf', 'web'].includes(pane.kind)) throw new Error(`unsupported pane kind: ${pane.kind}`);
-    if (['image', 'pdf', 'web'].includes(pane.kind) && (typeof pane.source !== 'string' || !pane.source.trim())) {
+    if (!['terminal', 'logo', 'image', 'pdf', 'video', 'web'].includes(pane.kind)) throw new Error(`unsupported pane kind: ${pane.kind}`);
+    if (['image', 'pdf', 'video', 'web'].includes(pane.kind) && (typeof pane.source !== 'string' || !pane.source.trim())) {
       throw new Error(`pane ${pane.id} needs a source`);
     }
     if (pane.kind === 'web') {
@@ -294,6 +303,7 @@ function loadConfig(argv = process.argv.slice(2)) {
           ? { ...DEFAULT_CONFIG.appearance.crt, ...stored.appearance.crt } : stored.appearance.crt
     },
     controls: { ...DEFAULT_CONFIG.controls, ...(stored.controls || {}) },
+    media: { ...DEFAULT_CONFIG.media, ...(stored.media || {}) },
     ending: { ...DEFAULT_CONFIG.ending, ...(stored.ending || {}) },
     modern: { ...DEFAULT_CONFIG.modern, ...(stored.modern || {}), ...(preset || {}) }
   };
