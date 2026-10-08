@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.5` (latest tagged release: `0.1.4`)
+- Source version: `0.1.5` (latest tagged release: `0.1.5`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -202,3 +202,7 @@ TTY checks verified n/p (including uppercase/wrap), a changed PID only in the re
 
 R/portal-restart retains the local working directory. Shift+R (uppercase R in headless) and portal-restart --reset-cwd use the profile default. Linux reads /proc/PID/cwd; macOS uses the system lsof; PowerShell uses transient prompt/Set-Location proxy notifications and CMD uses PROMPT notifications. User profile files are not modified. Per-session tokens distinguish local integration messages from unrelated OSC metadata.
 GUI tests change directory and start a long command before R, then verify retention and Shift+R reset. TTY tests verify the same directory modes alongside isolated PID restarts. Custom startup commands/profiles may need their own integration and can override startup directories.
+
+All v0.1.5 jobs and release publication passed: <https://github.com/drmsglados6/portal-console/actions/runs/37741817489>.
+Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.5>.
+Actual packaged media tests passed on Windows x64, Ubuntu x64, macOS x64 and arm64. Windows tests verified retained CWD while a command was still running; Unix native CWD tests included spaces and Unicode, and Linux TTY tests verified lowercase r retention and uppercase R reset.
