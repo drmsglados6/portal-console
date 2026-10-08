@@ -4,7 +4,12 @@ const { pathToFileURL, fileURLToPath } = require('node:url');
 
 const { KINDS, EXTENSIONS } = require('./media-command');
 
-function normalizeSource(kind, source) {
+function needsMediaBase(source) {
+  return typeof source === 'string' && !/^(?:https?:\/\/|file:)/i.test(source) &&
+    (!path.isAbsolute(source) || process.platform === 'win32' && /^[\\/](?![\\/])/.test(source));
+}
+
+function normalizeSource(kind, source, baseDirectory = process.cwd()) {
   if (!KINDS.includes(kind) || typeof source !== 'string' || !source.trim() || source.length > 8192) throw new Error('Invalid media kind/source');
   if (/^https?:\/\//i.test(source)) {
     const url = new URL(source);
@@ -14,14 +19,15 @@ function normalizeSource(kind, source) {
   }
   if (kind === 'web') throw new Error('Web panes require a complete http:// or https:// URL.');
   if (/^[a-z][\w+.-]*:/i.test(source) && !/^[a-z]:[\\/]/i.test(source) && !source.startsWith('file:')) throw new Error('Only local files and http(s) links are supported.');
-  const file = source.startsWith('file:') ? fileURLToPath(source) : path.resolve(source);
+  if (typeof baseDirectory !== 'string' || !path.isAbsolute(baseDirectory)) throw new Error('Invalid media base directory');
+  const file = source.startsWith('file:') ? fileURLToPath(source) : path.resolve(baseDirectory, source);
   if (!fs.statSync(file).isFile()) throw new Error('Media source is not a file.');
   return { source: file, url: pathToFileURL(file).href, remote: false, name: path.basename(file) };
 }
 
-function resolveMedia(kind, source, sort = 'name', descending = false) {
+function resolveMedia(kind, source, sort = 'name', descending = false, baseDirectory = process.cwd()) {
   if (!['name', 'modified', 'size'].includes(sort) || typeof descending !== 'boolean') throw new Error('Invalid file ordering');
-  const info = normalizeSource(kind, source);
+  const info = normalizeSource(kind, source, baseDirectory);
   if (info.remote || kind === 'web') return { ...info, kind, files: [info.source], index: 0, sort, descending };
   const directory = path.dirname(info.source);
   const candidates = [];
@@ -45,4 +51,4 @@ function resolveMedia(kind, source, sort = 'name', descending = false) {
   return { ...info, kind, files, index: files.indexOf(info.source), sort, descending };
 }
 
-module.exports = { normalizeSource, resolveMedia };
+module.exports = { normalizeSource, resolveMedia, needsMediaBase };

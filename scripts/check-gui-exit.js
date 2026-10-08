@@ -40,6 +40,8 @@ async function run() {
   const electron = packaged ? path.resolve('release', process.platform === 'darwin' ? `${process.arch === 'arm64' ? 'mac-arm64' : 'mac'}/portal-console.app/Contents/MacOS/portal-console`
     : process.platform === 'win32' ? 'win-unpacked/portal-console.exe' : 'linux-unpacked/portal-console') : require('electron');
   const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-gui-check-'));
+  let mainMediaDirectory = path.join(configHome, 'main directory');
+  let auxMediaDirectory = path.join(configHome, 'aux directory');
   if (checkWheel) {
     const mock = path.join(configHome, 'mouse-server.js');
     fs.writeFileSync(mock, "process.stdout.write('\\x1b[?1000h\\x1b[?1006hMOCK_READY\\r\\n'); for(let i=0;i<120;i++)process.stdout.write('LINE_'+i+'\\r\\n'); process.stdin.resume(); process.stdin.on('data', () => {});\n");
@@ -66,6 +68,12 @@ async function run() {
       modern: { columns: ['1fr'], rows: ['1fr'], areas: ['main'], panes: [{ id: 'main', kind: 'terminal', title: 'MAIN' }] } }));
   }
   if (checkMedia) {
+    for (const directory of [mainMediaDirectory, auxMediaDirectory]) {
+      fs.mkdirSync(directory);
+      fs.copyFileSync(path.join(__dirname, '..', 'assets/aperture-science.svg'), path.join(directory, 'relative.svg'));
+    }
+    mainMediaDirectory = fs.realpathSync.native(mainMediaDirectory);
+    auxMediaDirectory = fs.realpathSync.native(auxMediaDirectory);
     fs.copyFileSync(path.join(__dirname, '..', 'assets/aperture-science.svg'), path.join(configHome, 'image2.svg'));
     fs.copyFileSync(path.join(__dirname, '..', 'assets/aperture-science.svg'), path.join(configHome, 'image10.svg'));
     const pdf = path.join(configHome, 'sample.pdf');
@@ -93,9 +101,15 @@ async function run() {
     const folder = path.join(configHome, 'portal-console');
     fs.mkdirSync(folder);
     fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({
-      mode: 'modern', fullscreen: false, media: { videoSeekSeconds: 0.2 }, modern: {
-        columns: ['1fr', '1fr'], rows: ['1fr', '1fr'], areas: ['main image', 'pdf web'], panes: [
-          { id: 'main', kind: 'terminal', title: 'MAIN', startupCommand: 'echo __PORTAL_STARTUP__', appearance: { fontSize: 18, foreground: '#00ff00', background: '#111111' } },
+      mode: 'modern', fullscreen: false, media: { videoSeekSeconds: 0.2 },
+      consoles: { profiles: {
+        'main-directory': { command: process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash', args: process.platform === 'win32' ? ['-NoLogo'] : ['-l'], cwd: mainMediaDirectory },
+        'aux-directory': { command: process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash', args: process.platform === 'win32' ? ['-NoLogo'] : ['-l'], cwd: auxMediaDirectory }
+      } },
+      modern: {
+        columns: ['1fr', '1fr', '1fr'], rows: ['1fr', '1fr'], areas: ['main image web', 'aux pdf web'], panes: [
+          { id: 'main', kind: 'terminal', console: 'main-directory', title: 'MAIN', startupCommand: 'echo __PORTAL_STARTUP__', appearance: { fontSize: 18, foreground: '#00ff00', background: '#111111' } },
+          { id: 'aux', kind: 'terminal', console: 'aux-directory', title: 'AUX' },
           { id: 'image', kind: 'image', title: 'IMAGE', source: path.join(configHome, 'image2.svg') },
           { id: 'pdf', kind: 'pdf', title: 'PDF', source: pdf },
           { id: 'web', kind: 'web', title: 'WEB', source: 'https://example.com/' }
@@ -349,6 +363,18 @@ async function run() {
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers });
         await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers });
       };
+      await evaluate("document.querySelector('[data-pane=aux] .xterm-helper-textarea').focus()");
+      await typeKeys('portal-media ./relative.svg');
+      await wait(`document.querySelector('[data-pane=media1]')?.dataset.source===${JSON.stringify(path.join(auxMediaDirectory, 'relative.svg'))}`, 'relative source uses auxiliary cwd');
+      await evaluate("[...document.querySelector('[data-pane=media1] .media-toolbar').querySelectorAll('button')].find(b=>b.textContent==='CLOSE').click()");
+      await wait("!document.querySelector('[data-pane=media1]')", 'relative media close');
+      await evaluate("document.querySelector('[data-pane=aux] .xterm-helper-textarea').focus()");
+      await typeKeys('portal-media ./missing.svg');
+      await wait(`document.querySelector('#media-dialog').open && document.querySelector('#media-base-directory').textContent.includes(${JSON.stringify(auxMediaDirectory)})`, 'manual fallback retains auxiliary base directory');
+      await evaluate("document.querySelector('#media-source').value='./relative.svg';document.querySelector('#media-form').requestSubmit()");
+      await wait(`document.querySelector('[data-pane=media1]')?.dataset.source===${JSON.stringify(path.join(auxMediaDirectory, 'relative.svg'))}`, 'relative retry uses captured cwd');
+      await evaluate("[...document.querySelector('[data-pane=media1] .media-toolbar').querySelectorAll('button')].find(b=>b.textContent==='CLOSE').click()");
+      await wait("!document.querySelector('[data-pane=media1]')", 'relative retry media close');
       await evaluate("document.querySelector('[data-pane=image]').focus()");
       await key('ArrowRight', 'ArrowRight');
       await wait("document.querySelector('[data-pane=image]').dataset.source.endsWith('image10.svg')", 'next image');
@@ -416,7 +442,7 @@ async function run() {
       console.log('Image navigation/sort/zoom, PDF pages/RTL/files, video controls, inferred portal-media and manual fallback verified');
       await typeKeys('portal-preset 2x2');
       await wait("document.querySelector('#preset-dialog').open", 'close added video pane');
-      await evaluate("document.querySelector('#preset-selection').value='5';document.querySelector('#preset-form').requestSubmit()");
+      await evaluate("document.querySelector('#preset-selection').value='2,6';document.querySelector('#preset-form').requestSubmit()");
       let replacement;
       for (let attempt = 0; attempt < 40; attempt += 1) {
         replacement = await send('Runtime.evaluate', { expression: "document.querySelector('#replace-dialog').open" });

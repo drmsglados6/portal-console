@@ -11,7 +11,7 @@ const { refreshEnvironment, resolveConsole, prepareConsole } = require('./shell'
 const { cwdTracker, currentDirectory } = require('./cwd');
 const { newWindowArgs } = require('./window-launch');
 const { readInstallation } = require('./installation');
-const { normalizeSource, resolveMedia } = require('./media');
+const { normalizeSource, resolveMedia, needsMediaBase } = require('./media');
 
 const sessions = new Map();
 const logoCache = new Map();
@@ -179,9 +179,22 @@ function installIpc() {
     if (!pane || !['image', 'pdf', 'video', 'web'].includes(pane.kind)) throw new Error('Media pane not found');
     return normalizeSource(pane.kind, pane.source).url;
   });
-  ipcMain.handle('media:resolve', async (event, { kind, source, sort = config.media.fileSort, descending = config.media.descending } = {}) => {
+  ipcMain.handle('media:directory', async (event, id) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid media directory request');
+    if (!id) return process.cwd();
+    const session = ownedSession(event, id);
+    if (!session) throw new Error('Source terminal session not found');
+    return currentDirectory(session.child, session.cwdTracker, session.cwdAuthoritative);
+  });
+  ipcMain.handle('media:resolve', async (event, { kind, source, sort = config.media.fileSort, descending = config.media.descending, terminalId, baseDirectory } = {}) => {
     if (event.sender !== mainWindow?.webContents) throw new Error('Invalid media request');
-    const info = resolveMedia(kind, source, sort, descending);
+    let directory = baseDirectory;
+    if (!directory && terminalId && needsMediaBase(source)) {
+      const session = ownedSession(event, terminalId);
+      if (!session) throw new Error('Source terminal session not found');
+      directory = await currentDirectory(session.child, session.cwdTracker, session.cwdAuthoritative);
+    }
+    const info = resolveMedia(kind, source, sort, descending, directory || process.cwd());
     if (kind === 'image' && !info.remote && /\.tiff?$/i.test(info.source)) {
       const png = await require('sharp')(info.source).png().toBuffer();
       info.url = `data:image/png;base64,${png.toString('base64')}`;

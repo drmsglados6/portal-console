@@ -51,10 +51,22 @@ let endingArtFitKey = '';
 let switchingPreset = false;
 let queuedPreset;
 let mediaDialogSourceId;
+let mediaDialogBaseDirectory;
+let mediaDialogRevision = 0;
+let lastTerminalId = 'main';
 
-function openMediaDialog(source = '', error = '', kind = 'auto') {
+async function openMediaDialog(source = '', error = '', kind = 'auto', sourceId = lastTerminalId, baseDirectory) {
   if (mediaDialog.open) return;
-  mediaDialogSourceId = focusedId;
+  const revision = ++mediaDialogRevision;
+  let directory = baseDirectory;
+  if (!directory) {
+    try { directory = await window.portalConsole.mediaDirectory(sourceId); }
+    catch (failure) { error = `${error}${error ? '\n' : ''}${failure.message}. Use an absolute path.`; }
+  }
+  if (revision !== mediaDialogRevision) return;
+  mediaDialogSourceId = sourceId;
+  mediaDialogBaseDirectory = directory;
+  document.querySelector('#media-base-directory').textContent = directory ? `Relative paths are based on: ${directory}` : 'Current directory unavailable; use an absolute path.';
   document.querySelector('#media-source').value = source;
   document.querySelector('#media-kind').value = kind;
   document.querySelector('#media-error').textContent = error;
@@ -329,14 +341,18 @@ async function mediaElement(spec, prepared) {
   return view.element;
 }
 
-async function openMedia(command, sourceId, cancelInput = true) {
+async function openMedia(command, sourceId, cancelInput = true, baseDirectory) {
   if (cancelInput && sourceId) window.portalConsole.write(sourceId, '\x03');
-  if (!command.source || command.error && command.source) { openMediaDialog(command.source || '', command.error || '', command.kind || 'auto'); return; }
+  let directory = baseDirectory;
+  if (!directory && sourceId) {
+    try { directory = await window.portalConsole.mediaDirectory(sourceId); } catch {}
+  }
+  if (!command.source || command.error && command.source) { openMediaDialog(command.source || '', command.error || '', command.kind || 'auto', sourceId, directory); return; }
   if (command.error) { showStatus(command.error); return; }
   if (switchingPreset || endingPlayback) { showStatus('Layout is busy; retry portal-media after it finishes.'); return; }
   switchingPreset = true;
   try {
-    const info = await window.portalConsole.resolveMedia({ kind: command.kind, source: command.source });
+    const info = await window.portalConsole.resolveMedia({ kind: command.kind, source: command.source, terminalId: sourceId, baseDirectory: directory });
     const base = mode === 'original' ? {
       columns: ['1fr', '1fr'], rows: ['1fr', '1fr'], areas: ['main aux', 'main logo'],
       panes: [{ id: 'main', title: 'PRIMARY TERMINAL', kind: 'terminal' }, { id: 'aux', title: 'AUXILIARY TERMINAL', kind: 'terminal' }, { id: 'logo', title: 'APERTURE SCIENCE', kind: 'logo' }]
@@ -348,7 +364,7 @@ async function openMedia(command, sourceId, cancelInput = true) {
     await mediaElement(spec, info);
     await renderLayout('modern');
     focusPane(spec.id);
-  } catch (error) { openMediaDialog(command.source, `MEDIA ERROR: ${error.message}`, command.kind); }
+  } catch (error) { openMediaDialog(command.source, `MEDIA ERROR: ${error.message}`, command.kind, sourceId, directory); }
   finally {
     switchingPreset = false;
     if (queuedPreset) { const next = queuedPreset; queuedPreset = null; switchPreset(next.name, next.sourceId); }
@@ -462,6 +478,7 @@ function focusPane(id, focusControl = true) {
   const pane = panes.get(id);
   const view = media.get(id);
   if (!pane && !view) return;
+  if (pane) lastTerminalId = id;
   for (const [otherId, other] of media) if (otherId !== id) other.restoreMaximize();
   focusedId = id;
   document.querySelectorAll('.pane').forEach((element) => element.classList.toggle('focused', element.dataset.pane === id));
@@ -952,7 +969,7 @@ async function start() {
       const choice = document.querySelector('#media-kind').value;
       const kind = choice === 'auto' ? inferMediaKind(source) : choice;
       mediaDialog.close();
-      openMedia({ kind, source }, mediaDialogSourceId, false);
+      openMedia({ kind, source }, mediaDialogSourceId, false, mediaDialogBaseDirectory);
     } catch (error) { document.querySelector('#media-error').textContent = error.message; }
   });
   renderLayout(mode);

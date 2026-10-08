@@ -74,7 +74,9 @@ portal-media https://example.com/book.pdf --kind pdf
 portal-media --kind video --source "https://example.com/movie.mp4"
 ```
 
-`portal-media`だけを入力するか **+ MEDIA** を押すと、sourceと種類（AUTO／IMAGE／PDF／VIDEO／WEB）を選ぶ画面が開きます。判定できなかったsourceもこの画面に残るため、手動で修正できます。ファイルはPortal Consoleを動かしているマシン上のものを指定してください。SSH接続先のファイルを自動転送する機能ではありません。絶対パスを推奨し、相対パスはアプリの起動ディレクトリを基準に解決します。
+`portal-media`だけを入力するか **+ MEDIA** を押すと、sourceと種類（AUTO／IMAGE／PDF／VIDEO／WEB）を選ぶ画面が開きます。判定できなかったsourceもこの画面に残るため、手動で修正できます。ファイルはPortal Consoleを動かしているマシン上のものを指定してください。SSH接続先のファイルを自動転送する機能ではありません。
+
+`portal-media ./picture.jpg`のような相対指定は、**コマンドを入力したペインの現在の作業ディレクトリ**を基準に解決します。手動選択画面にも基準ディレクトリを表示し、修正・再入力ではその基準を保持します。**+ MEDIA**は直前に操作したターミナルの現在位置を使います。起動時のJSON配置に直接書いた相対sourceは、従来どおりアプリの起動ディレクトリを基準にするため、固定配置には絶対パスを推奨します。
 
 | 表示 | キー操作（ビューア内容をクリックしてフォーカス） |
 | --- | --- |

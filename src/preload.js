@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('portalConsole', {
   presets: () => ipcRenderer.invoke('app:preset-list'),
   mediaUrl: (id) => ipcRenderer.invoke('app:media-url', id),
   resolveMedia: (request) => ipcRenderer.invoke('media:resolve', request),
+  mediaDirectory: (id) => ipcRenderer.invoke('media:directory', id),
   pdfData: (source) => ipcRenderer.invoke('media:pdf-data', source),
   chooseMediaFile: () => ipcRenderer.invoke('media:choose-file'),
   onMediaMaximize: (callback) => {

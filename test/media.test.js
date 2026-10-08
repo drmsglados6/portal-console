@@ -36,6 +36,17 @@ test('local navigation filters file kinds, sorts naturally and preserves selecte
   assert.throws(() => normalizeSource('pdf', 'javascript:alert(1)'), /supported/);
 });
 
+test('relative media paths use the provided pane directory, not the application directory', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-media-relative-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const first = path.join(directory, 'first'), second = path.join(directory, 'second');
+  for (const folder of [first, second]) { fs.mkdirSync(folder); fs.writeFileSync(path.join(folder, 'picture.jpg'), 'fixture'); }
+  assert.equal(resolveMedia('image', './picture.jpg', 'name', false, first).source, path.join(first, 'picture.jpg'));
+  assert.equal(resolveMedia('image', './picture.jpg', 'name', false, second).source, path.join(second, 'picture.jpg'));
+  assert.equal(normalizeSource('image', path.join(first, 'picture.jpg'), second).source, path.join(first, 'picture.jpg'));
+  assert.equal(normalizeSource('web', 'https://example.com', second).url, 'https://example.com/');
+});
+
 test('opening media appends a spanning pane without replacing terminal ids', () => {
   const layout = appendMediaPane(DEFAULT_CONFIG.modern, { kind: 'video', source: 'movie.mp4' }, ['media1']);
   assert.deepEqual(layout.panes.slice(0, 3), DEFAULT_CONFIG.modern.panes);

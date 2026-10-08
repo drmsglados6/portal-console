@@ -71,9 +71,9 @@ function helpSections(frontend, config) {
       ['Mouse / CRT / sound', 'Mouse forwarding, graphical CRT effects and ending audio are not available in ANSI mode.']
     ] },
     ...gui ? [{ title: 'MEDIA: OPENING, FILES AND CONTROLS', entries: [
-      ['Open an image/PDF/video', 'At a shell prompt: portal-media "C:/docs/manual.pdf" or portal-media "/path/to/image.png". Use absolute paths on the machine running Portal Console, not SSH-remote paths.'],
+      ['Open an image/PDF/video', 'At a shell prompt: portal-media ./picture.jpg or portal-media "C:/docs/manual.pdf". Relative paths use that terminal pane\'s current directory; sources are local to Portal Console, not SSH-remote.'],
       ['Open a web page', 'portal-media https://example.com. --kind can override URL detection, e.g. portal-media https://example.com/book.pdf --kind pdf.'],
-      ['Manual selection', 'portal-media with no source, or + MEDIA, opens the source/viewer chooser. Failed inference retains the source for manual selection.'],
+      ['Manual selection', 'portal-media or + MEDIA opens the chooser. Failed inference retains the source; the displayed base directory stays fixed for manual retries. + MEDIA uses the last selected terminal.'],
       ['Placement / F11 / Close', 'Switches original to modern if needed and appends a column. F11/MAX maximizes inside the app; F11 restores. CLOSE removes media without stopping terminals.'],
       ['Image Left/Right', 'Previous/next local image in the same folder. F fits, 1 uses actual pixels, +/- zooms.'],
       ['File ordering S / Shift+S', 'Cycle NAME/MODIFIED/SIZE or reverse the order. Toolbar controls do the same. Local files only.'],

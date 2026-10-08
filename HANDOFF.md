@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.5` (latest tagged release: `0.1.5`)
+- Source version: `0.1.6` (latest tagged release: `0.1.5`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -206,3 +206,7 @@ GUI tests change directory and start a long command before R, then verify retent
 All v0.1.5 jobs and release publication passed: <https://github.com/drmsglados6/portal-console/actions/runs/37741817489>.
 Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.5>.
 Actual packaged media tests passed on Windows x64, Ubuntu x64, macOS x64 and arm64. Windows tests verified retained CWD while a command was still running; Unix native CWD tests included spaces and Unicode, and Linux TTY tests verified lowercase r retention and uppercase R reset.
+
+## Relative media sources (0.1.6)
+
+The v0.1.5 resolver used the application launch directory for relative portal-media sources. Resolution now uses the originating owned terminal's CWD. Manual fallback retains its source terminal and a captured base directory displayed in the dialog; + MEDIA uses the last selected terminal. Fixed JSON pane sources retain the launch-directory behavior. Tests use two terminals rooted in different folders with identically named images and verify auxiliary-relative opening and manual retry.
