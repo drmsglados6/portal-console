@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.6` (latest tagged release: `0.1.5`)
+- Source version: `0.1.6` (latest tagged release: `0.1.6`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -210,3 +210,6 @@ Actual packaged media tests passed on Windows x64, Ubuntu x64, macOS x64 and arm
 ## Relative media sources (0.1.6)
 
 The v0.1.5 resolver used the application launch directory for relative portal-media sources. Resolution now uses the originating owned terminal's CWD. Manual fallback retains its source terminal and a captured base directory displayed in the dialog; + MEDIA uses the last selected terminal. Fixed JSON pane sources retain the launch-directory behavior. Tests use two terminals rooted in different folders with identically named images and verify auxiliary-relative opening and manual retry.
+
+All platform builds, packaged GUI checks and release publication passed: <https://github.com/drmsglados6/portal-console/actions/runs/37860751117>.
+Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.6>.
