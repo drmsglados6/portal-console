@@ -5,7 +5,8 @@ const { imageToAscii } = require('./ascii-art');
 const { loadScene } = require('./ending-scene');
 const { prepareScene, sceneState } = require('./ending-state');
 const { importPortalCredits } = require('./portal-import');
-const { refreshEnvironment, resolveConsole, spawnOptions } = require('./shell');
+const { refreshEnvironment, resolveConsole, prepareConsole } = require('./shell');
+const { cwdTracker, currentDirectory } = require('./cwd');
 const { portalCommandInput } = require('./portal-command');
 const { helpSections, helpLines } = require('./help');
 const { headlessInput } = require('./headless-input');
@@ -303,17 +304,20 @@ async function run(argv = []) {
     process.exitCode = code;
   }
 
-  function startPane(pane) {
+  function startPane(pane, retainedCwd) {
     const previous = pane.child;
     pane.child = null;
     previous?.kill();
     const consoleProfile = resolveConsole(config, pane.spec.id);
-    const child = pty.spawn(consoleProfile.command, consoleProfile.args, spawnOptions(pane.cols, pane.rows, consoleProfile.cwd));
+    const prepared = prepareConsole(consoleProfile, pane.cols, pane.rows, retainedCwd);
+    pane.cwdTracker = cwdTracker(prepared.options.cwd, prepared.token, prepared.authoritative);
+    pane.cwdAuthoritative = prepared.authoritative;
+    const child = pty.spawn(prepared.command, prepared.args, prepared.options);
     const generation = (pane.generation || 0) + 1;
     pane.generation = generation;
     pane.child = child;
     child.onData((data) => {
-      if (pane.child === child && pane.generation === generation) pane.term.write(data, draw);
+      if (pane.child === child && pane.generation === generation) { pane.cwdTracker.feed(data); pane.term.write(data, draw); }
     });
     child.onExit(() => {
       if (pane.child === child && pane.generation === generation) pane.child = null;
@@ -321,18 +325,19 @@ async function run(argv = []) {
     });
   }
 
-  async function restartFocused() {
+  async function restartFocused(preserveCwd = true) {
     const pane = panes.get(focusedId);
     if (!pane?.term || pane.restarting) return;
     pane.restarting = true;
     commandStatus = `RESTARTING ${pane.spec.title}...`;
     draw();
     try {
+      const directory = preserveCwd ? await currentDirectory(pane.child, pane.cwdTracker, pane.cwdAuthoritative) : undefined;
       await refreshEnvironment(true);
       pane.term.reset();
       pane.commandInput.reset();
-      startPane(pane);
-      commandStatus = `${pane.spec.title} RESTARTED`;
+      startPane(pane, directory);
+      commandStatus = `${pane.spec.title} RESTARTED (${preserveCwd ? 'KEEP CWD' : 'RESET CWD'})`;
     } catch (error) {
       commandStatus = `RESTART FAILED: ${error.message}`;
     } finally {
@@ -369,7 +374,7 @@ async function run(argv = []) {
       else if (key === 'n') cycleFocus(1);
       else if (key === 'p') cycleFocus(-1);
       else if (key === 'c') { commandMode = true; commandStatus = ''; draw(); }
-      else if (key === 'r') { commandMode = true; restartFocused(); }
+      else if (key === 'r') { commandMode = true; restartFocused(data !== 'R'); }
       else if (data === '\x02') panes.get(focusedId)?.child?.write(data);
       return;
     }
@@ -408,7 +413,7 @@ async function run(argv = []) {
       if (data === '\x1b' || data.toLowerCase() === 'i') {
         commandMode = false;
         commandStatus = '';
-      } else if (data.toLowerCase() === 'r') restartFocused();
+      } else if (data.toLowerCase() === 'r') restartFocused(data !== 'R');
       else if (data === '?') showHelp();
       else if (data.toLowerCase() === 'e') startEnding();
       else if (['h', 'k'].includes(data.toLowerCase())) {
@@ -422,7 +427,7 @@ async function run(argv = []) {
     const pane = panes.get(focusedId);
     const command = pane?.commandInput?.(data);
     if (command?.type === 'exit') cleanup();
-    else if (command?.type === 'restart') { commandMode = true; restartFocused(); }
+    else if (command?.type === 'restart') { commandMode = true; restartFocused(command.preserveCwd !== false); }
     else if (command?.type === 'help') {
       pane.child?.write('\x03');
       pane.commandInput.reset();

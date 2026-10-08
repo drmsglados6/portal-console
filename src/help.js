@@ -3,7 +3,7 @@ function helpSections(frontend, config) {
   return [
     { title: 'INTERNAL COMMANDS (at a shell prompt)', entries: [
       ['portal-help', gui ? 'Open this help; Esc or Close returns to the same terminal.' : 'Open paged help; Q/Esc/Enter returns to the same terminal.'],
-      ['portal-restart', 'Restart the current pane shell. Its running programs stop; other panes continue.'],
+      ['portal-restart', 'Restart the current pane shell keeping its working directory. --reset-cwd restores the profile default. Running programs stop; other panes continue.'],
       ['portal-media SOURCE', gui ? 'Open a new media pane; http(s) defaults to web, local files use their extension. Quote paths containing spaces.' : 'Graphical media requires the GUI; use w3m URL in a text terminal.'],
       ['portal-media --kind TYPE --source SOURCE', 'Override detection with image/pdf/video/web. A linked PDF or video needs --kind pdf/video because URLs default to web.'],
       ['portal-exit', 'Quit the entire application and stop all of its terminal sessions.'],
@@ -20,16 +20,16 @@ function helpSections(frontend, config) {
     ] },
     { title: 'RESTART AND COMMAND MODE', entries: gui ? [
       ['Ctrl+Shift+P', 'Toggle command mode; command keys are kept out of the shell.'],
-      ['Command mode R', 'Restart only the focused pane shell, reset its screen, and reload Windows environment variables.'],
+      ['Command mode R / Shift+R', 'R keeps the working directory; Shift+R starts at the profile default. Only the focused shell restarts; Windows environment variables are reloaded.'],
       ['Command mode H/K or J/L', 'Select previous or next terminal.'],
       ['Command mode 1 / 2', 'Select primary / auxiliary if present.'],
       ['Command mode G', 'Toggle static CRT effects.'],
       ['Esc / I', 'Leave command mode and return to the terminal.'],
       ['F1 / Ctrl+Shift+H', 'Open help without interrupting the foreground program.']
     ] : [
-      ['Ctrl+B then r', 'Restart only the selected pane. Esc returns from its restart status to terminal input.'],
+      ['Ctrl+B then r / Shift+R', 'Lowercase r keeps the working directory; uppercase R resets to the profile default. Esc returns from restart status to terminal input.'],
       ['Ctrl+B then c', 'Enter command mode.'],
-      ['Command mode R', 'Restart the selected shell; running programs stop and its profile working directory is restored.'],
+      ['Command mode r / Shift+R', 'r keeps the working directory; uppercase R resets it. Running programs in that pane stop.'],
       ['Command mode H/K or J/L', 'Select previous or next terminal.'],
       ['Command mode ?', 'Open help.'],
       ['Esc / I', 'Leave command mode and return to terminal input.'],

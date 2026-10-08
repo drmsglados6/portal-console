@@ -2,6 +2,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
+const { randomBytes } = require('node:crypto');
 
 const execFileAsync = promisify(execFile);
 let registryEnvironmentNames = new Set();
@@ -78,4 +79,28 @@ function spawnOptions(cols, rows, cwd = os.homedir()) {
   };
 }
 
-module.exports = { BUILT_INS, profileName, refreshEnvironment, resolveConsole, spawnOptions };
+function prepareConsole(profile, cols, rows, retainedCwd) {
+  const args = [...profile.args];
+  const options = spawnOptions(cols, rows, retainedCwd || profile.cwd);
+  const token = randomBytes(12).toString('hex');
+  const executable = path.basename(profile.command).replace(/\.exe$/i, '').toLowerCase();
+  let authoritative = false;
+  if (['powershell', 'pwsh'].includes(executable) && !args.some((arg) => /^-(?:c|command|commandwithargs|e|encodedcommand|f|file)$/i.test(arg))) {
+    if (!args.some((arg) => /^-noexit$/i.test(arg))) args.push('-NoExit');
+    if (retainedCwd) options.env.PORTAL_CONSOLE_START_CWD = retainedCwd;
+    args.push('-Command', [
+      '$global:PortalConsoleSavedPrompt=$function:prompt',
+      'if($env:PORTAL_CONSOLE_START_CWD){Microsoft.PowerShell.Management\\Set-Location -LiteralPath $env:PORTAL_CONSOLE_START_CWD;Remove-Item Env:PORTAL_CONSOLE_START_CWD}',
+      `function global:PortalConsoleReportCwd { if($PWD.Provider.Name -eq 'FileSystem'){ $p=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($PWD.ProviderPath));[Console]::Write(([char]27).ToString()+']1337;PortalConsoleCwd=${token}:b64:'+$p+[char]7) } }`,
+      `function global:prompt { PortalConsoleReportCwd; if($global:PortalConsoleSavedPrompt){ & $global:PortalConsoleSavedPrompt; PortalConsoleReportCwd }else{ 'PS '+$PWD+'> ' } }`,
+      "$c=Get-Command Set-Location -ErrorAction SilentlyContinue;if($c.CommandType -eq 'Cmdlet'){$proxy=[System.Management.Automation.ProxyCommand]::Create([System.Management.Automation.CommandMetadata]::new($c)).Replace('$steppablePipeline.End()','$steppablePipeline.End(); PortalConsoleReportCwd');Set-Item -LiteralPath Function:\\global:Set-Location -Value ([ScriptBlock]::Create($proxy))}"
+    ].join(';'));
+    authoritative = true;
+  } else if (process.platform === 'win32' && executable === 'cmd') {
+    options.env.PROMPT = `\x1b]1337;PortalConsoleCwd=${token}:raw:$P\x07${options.env.PROMPT || '$P$G'}`;
+    authoritative = true;
+  }
+  return { command: profile.command, args, options, token, authoritative };
+}
+
+module.exports = { BUILT_INS, profileName, refreshEnvironment, resolveConsole, spawnOptions, prepareConsole };

@@ -64,7 +64,7 @@ jobs:
         run: node scripts/check-packaged.js
       - name: Verify CRT controls on Windows
         if: runner.os == 'Windows'
-        run: node scripts/check-gui-exit.js --crt --help
+        run: node scripts/check-gui-exit.js --crt --help --cwd
       - name: Verify packaged media controls
         if: runner.os != 'Linux'
         run: node scripts/check-gui-exit.js --media --packaged

@@ -7,7 +7,8 @@ const { loadConfig, presetNames, resolvePreset, validate } = require('./config')
 const { imageToAscii } = require('./ascii-art');
 const { loadScene } = require('./ending-scene');
 const { importPortalCredits } = require('./portal-import');
-const { refreshEnvironment, resolveConsole, spawnOptions } = require('./shell');
+const { refreshEnvironment, resolveConsole, prepareConsole } = require('./shell');
+const { cwdTracker, currentDirectory } = require('./cwd');
 const { newWindowArgs } = require('./window-launch');
 const { readInstallation } = require('./installation');
 const { normalizeSource, resolveMedia } = require('./media');
@@ -70,12 +71,15 @@ function queueOutput(session, child, generation, data) {
   flushOutput(session);
 }
 
-function spawnSession(session) {
+function spawnSession(session, retainedCwd) {
   const consoleProfile = resolveConsole(config, session.id);
+  const prepared = prepareConsole(consoleProfile, session.cols, session.rows, retainedCwd);
+  session.cwdTracker = cwdTracker(prepared.options.cwd, prepared.token, prepared.authoritative);
+  session.cwdAuthoritative = prepared.authoritative;
   const child = pty.spawn(
-    consoleProfile.command,
-    consoleProfile.args,
-    spawnOptions(session.cols, session.rows, consoleProfile.cwd)
+    prepared.command,
+    prepared.args,
+    prepared.options
   );
   const generation = session.generation + 1;
   session.child = child;
@@ -83,7 +87,11 @@ function spawnSession(session) {
   session.pendingOutput = '';
   session.outputInFlight = false;
   session.paused = false;
-  child.onData((data) => queueOutput(session, child, generation, data));
+  child.onData((data) => {
+    if (session.child !== child || session.generation !== generation) return;
+    session.cwdTracker.feed(data);
+    queueOutput(session, child, generation, data);
+  });
   child.onExit(({ exitCode }) => {
     if (session.child !== child || session.generation !== generation) return;
     session.child = null;
@@ -110,14 +118,15 @@ function spawnSession(session) {
   return generation;
 }
 
-function restartSession(session) {
+async function restartSession(session, preserveCwd = true) {
+  const directory = preserveCwd ? await currentDirectory(session.child, session.cwdTracker, session.cwdAuthoritative) : undefined;
   clearTimeout(session.restartTimer);
   session.restartTimer = null;
   session.recentExits = [];
   const previous = session.child;
   session.child = null;
   if (previous) previous.kill();
-  return spawnSession(session);
+  return spawnSession(session, directory);
 }
 
 function ownedSession(event, id) {
@@ -266,12 +275,13 @@ function installIpc() {
       throw error;
     }
   });
-  ipcMain.handle('terminal:restart', async (event, { id } = {}) => {
+  ipcMain.handle('terminal:restart', async (event, { id, preserveCwd = true } = {}) => {
     const session = ownedSession(event, id);
     if (!session) throw new Error('Terminal session not found');
+    if (typeof preserveCwd !== 'boolean') throw new Error('Invalid restart mode');
     const refreshed = await refreshEnvironment(true);
     diagnostic(`Environment refreshed before restarting PTY ${id}: ${refreshed} registry variables`);
-    return { id, generation: restartSession(session) };
+    return { id, generation: await restartSession(session, preserveCwd) };
   });
   ipcMain.handle('terminal:close', (event, id) => {
     const session = ownedSession(event, id);

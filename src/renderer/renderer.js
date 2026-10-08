@@ -422,7 +422,7 @@ async function terminalElement(spec) {
     if (command?.type === 'exit') window.portalConsole.quit();
     else if (command?.type === 'preset') switchPreset(command.name, spec.id);
     else if (command?.type === 'help') showHelp(spec.id);
-    else if (command?.type === 'restart') { focusPane(spec.id); restartFocusedTerminal(); }
+    else if (command?.type === 'restart') { focusPane(spec.id); restartFocusedTerminal(command.preserveCwd !== false); }
     else if (command?.type === 'media') openMedia(command, spec.id);
     else window.portalConsole.write(spec.id, data);
   });
@@ -787,7 +787,7 @@ function effectiveEndingVolume() {
   return config.ending.volumeCurve === 'quadratic' ? endingVolume * endingVolume : endingVolume;
 }
 
-async function restartFocusedTerminal() {
+async function restartFocusedTerminal(preserveCwd = true) {
   const pane = panes.get(focusedId);
   if (!pane || pane.restarting) return;
   pane.restarting = true;
@@ -796,12 +796,12 @@ async function restartFocusedTerminal() {
   pane.terminal.reset();
   setCommandMode(true, `RESTARTING ${pane.spec.title}...`);
   try {
-    const result = await window.portalConsole.restart(focusedId);
+    const result = await window.portalConsole.restart(focusedId, preserveCwd);
     pane.generation = result.generation;
     pane.pendingStartup = pane.spec.startupCommand || null;
     pane.startupSawOutput = false;
     scheduleStartup(pane, 1200);
-    setCommandMode(true, `${pane.spec.title} RESTARTED   ESC/I TERMINAL`);
+    setCommandMode(true, `${pane.spec.title} RESTARTED (${preserveCwd ? 'KEEP CWD' : 'RESET CWD'})   ESC/I TERMINAL`);
   } catch (error) {
     pane.generation -= 1;
     pane.terminal.write(`\r\n\x1b[31m[restart failed: ${error.message}]\x1b[0m\r\n`);
@@ -843,7 +843,7 @@ function bindKeys() {
     else if (event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey && event.code === 'Digit3') renderLayout('modern');
     else if (event.ctrlKey && event.shiftKey && event.code === 'KeyP') setCommandMode(!commandMode);
     else if (commandMode && (event.key === 'Escape' || event.key.toLowerCase() === 'i')) setCommandMode(false);
-    else if (commandMode && event.key.toLowerCase() === 'r') restartFocusedTerminal();
+    else if (commandMode && event.key.toLowerCase() === 'r') restartFocusedTerminal(!event.shiftKey);
     else if (commandMode && event.key.toLowerCase() === 'g') toggleCrt();
     else if (commandMode && event.key === '?') showHelp(focusedId, false);
     else if (commandMode && event.key.toLowerCase() === 'e') startEndingPlayback();

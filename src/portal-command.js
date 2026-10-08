@@ -28,7 +28,7 @@ function portalCommandInput() {
       if (character === '\r' || character === '\n') {
         let command = !escaped && (line === 'portal-exit' ? { type: 'exit' }
           : line === 'portal-help' ? { type: 'help' }
-          : line === 'portal-restart' ? { type: 'restart' }
+          : /^portal-restart(?:\s+--reset-cwd)?$/.test(line) ? { type: 'restart', ...(line.endsWith('--reset-cwd') ? { preserveCwd: false } : {}) }
           : /^portal-preset\s+(\S+)$/.test(line) ? { type: 'preset', name: line.match(/^portal-preset\s+(\S+)$/)[1] } : null);
         if (!escaped && /^portal-media(?:\s|$)/.test(line)) {
           try { command = { type: 'media', ...parseMediaCommand(line) }; }

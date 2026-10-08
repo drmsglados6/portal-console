@@ -71,6 +71,7 @@ test('portal-help is an internal command', () => {
 
 test('portal-restart is recognized only as a standalone command', () => {
   assert.deepEqual(portalCommandInput()('portal-restart\r'), { type: 'restart' });
+  assert.deepEqual(portalCommandInput()('portal-restart --reset-cwd\r'), { type: 'restart', preserveCwd: false });
   assert.equal(portalCommandInput()('echo portal-restart\r'), null);
 });
 

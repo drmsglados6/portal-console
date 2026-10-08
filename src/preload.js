@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('portalConsole', {
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   writeClipboard: (value) => ipcRenderer.invoke('clipboard:write', value),
   create: (options) => ipcRenderer.invoke('terminal:create', options),
-  restart: (id) => ipcRenderer.invoke('terminal:restart', { id }),
+  restart: (id, preserveCwd = true) => ipcRenderer.invoke('terminal:restart', { id, preserveCwd }),
   write: (id, data) => ipcRenderer.send('terminal:write', { id, data }),
   resize: (id, cols, rows) => ipcRenderer.send('terminal:resize', { id, cols, rows }),
   acknowledge: (id, generation) => ipcRenderer.send('terminal:ack', { id, generation }),

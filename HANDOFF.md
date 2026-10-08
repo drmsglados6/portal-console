@@ -197,3 +197,8 @@ TTY checks verified n/p (including uppercase/wrap), a changed PID only in the re
 - PDF.js 6 requires Node 22.13+ for development. Build bundles a classic worker and copies fonts/CMaps/WASM. Worker/assets must be unpacked from ASAR; the module/blob worker path caused Electron 43 sandbox startup failures.
 - `scripts/check-gui-exit.js --media --packaged` tests actual packaged rendering and controls, with a synthetic Chromium-recorded WebM (no ffmpeg dependency).
 - The internal browser uses its own Electron profile. Native OS browser/IrfanView embedding and arbitrary-window docking are deferred per the user's chosen cross-platform-first approach. `media.imageViewer` currently accepts internal only.
+
+### Restart directory modes in this version
+
+R/portal-restart retains the local working directory. Shift+R (uppercase R in headless) and portal-restart --reset-cwd use the profile default. Linux reads /proc/PID/cwd; macOS uses the system lsof; PowerShell uses transient prompt/Set-Location proxy notifications and CMD uses PROMPT notifications. User profile files are not modified. Per-session tokens distinguish local integration messages from unrelated OSC metadata.
+GUI tests change directory and start a long command before R, then verify retention and Shift+R reset. TTY tests verify the same directory modes alongside isolated PID restarts. Custom startup commands/profiles may need their own integration and can override startup directories.

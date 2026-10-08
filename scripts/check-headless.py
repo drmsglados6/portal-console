@@ -7,6 +7,9 @@ import struct
 import subprocess
 import termios
 import time
+import tempfile
+import hashlib
+import shlex
 
 
 def check(arguments):
@@ -22,6 +25,7 @@ def check(arguments):
     )
     os.close(slave)
     output = b''
+    directory = tempfile.TemporaryDirectory(prefix='portal-cwd-')
     try:
         def wait_for(pattern):
             nonlocal output
@@ -44,6 +48,10 @@ def check(arguments):
             os.write(master, f"printf 'PID_{label}=%s\\n' $$\r".encode())
             return int(wait_for(f'PID_{label}=(\\d+)'.encode()).group(1))
 
+        def shell_cwd(label):
+            os.write(master, f"printf 'DIR_{label}=%s\\n' \"$(pwd -P | sha256sum | cut -d' ' -f1)\"\r".encode())
+            return wait_for(f'DIR_{label}=([0-9a-f]{{64}})'.encode()).group(1).decode()
+
         wait_for(b'PRIMARY TERMINAL')
         main_pid = shell_pid('main_before')
         prefix(b'n')
@@ -55,10 +63,20 @@ def check(arguments):
         assert shell_pid('last') not in (main_pid, auxiliary_pid)
         prefix(b'N')
         assert shell_pid('main_wrapped') == main_pid
+        os.write(master, f'cd -- {shlex.quote(directory.name)}\r'.encode())
+        expected = hashlib.sha256((os.path.realpath(directory.name) + '\n').encode()).hexdigest()
+        assert shell_cwd('before') == expected
         prefix(b'r')
         wait_for(b'PRIMARY TERMINAL RESTARTED')
         os.write(master, b'\x1b')
         assert shell_pid('main_after') != main_pid
+        assert shell_cwd('kept') == expected
+        output = b''
+        prefix(b'R')
+        wait_for(b'RESET CWD')
+        os.write(master, b'\x1b')
+        reset = hashlib.sha256((os.path.realpath(os.path.expanduser('~')) + '\n').encode()).hexdigest()
+        assert shell_cwd('reset') == reset
         prefix(b'n')
         assert shell_pid('aux_after') == auxiliary_pid
         prefix(b'?')
@@ -83,6 +101,7 @@ def check(arguments):
             child.kill()
             child.wait()
         os.close(master)
+        directory.cleanup()
 
 
 check(['--headless'])

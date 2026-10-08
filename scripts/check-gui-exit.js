@@ -33,6 +33,7 @@ async function run() {
   const checkRegex = process.argv.includes('--regex');
   const checkCrt = process.argv.includes('--crt');
   const checkHelp = process.argv.includes('--help');
+  const checkCwd = process.argv.includes('--cwd');
   const packaged = process.argv.includes('--packaged');
   const sourceId = process.argv.includes('--third') ? 'third' : 'main';
   const port = await availablePort();
@@ -54,6 +55,14 @@ async function run() {
     const folder = path.join(configHome, 'portal-console');
     fs.mkdirSync(folder);
     fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({ controls: { closeSelectionSyntax: 'regex' } }));
+  }
+  const workDirectory = path.join(configHome, 'work dir');
+  if (checkCwd) {
+    fs.mkdirSync(workDirectory);
+    const folder = path.join(configHome, 'portal-console');
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({ mode: 'modern', fullscreen: false,
+      modern: { columns: ['1fr'], rows: ['1fr'], areas: ['main'], panes: [{ id: 'main', kind: 'terminal', title: 'MAIN' }] } }));
   }
   if (checkMedia) {
     fs.copyFileSync(path.join(__dirname, '..', 'assets/aperture-science.svg'), path.join(configHome, 'image2.svg'));
@@ -221,6 +230,36 @@ async function run() {
       if (current.enabled) throw new Error('Command-mode G did not disable CRT');
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       console.log('CRT software rendering, dialog toggle, live adjustment and command-mode toggle verified');
+    }
+    if (checkCwd) {
+      const query = async (label, expected, prefix = '', suffix = '') => {
+        await typeKeys(`${prefix}Write-Output ('${label}' + $PWD.ProviderPath)${suffix}`);
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          const value = await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=main] .xterm-rows').textContent.includes(${JSON.stringify(label + expected)})` });
+          if (value.result?.result?.value) return;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        throw new Error(`Working directory was not ${expected}; ${errors}`);
+      };
+      const restart = async (reset) => {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'P', code: 'KeyP', modifiers: 10 });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'P', code: 'KeyP', modifiers: 10 });
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: reset ? 'R' : 'r', code: 'KeyR', modifiers: reset ? 8 : 0 });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: reset ? 'R' : 'r', code: 'KeyR', modifiers: reset ? 8 : 0 });
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          const status = await send('Runtime.evaluate', { expression: "document.querySelector('#mode-indicator').textContent" });
+          if (status.result?.result?.value?.includes(reset ? 'RESTARTED (RESET CWD)' : 'RESTARTED (KEEP CWD)')) break;
+          if (attempt === 79) throw new Error(`Restart failed: ${JSON.stringify(status)} ${errors}`);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+      };
+      await query('CWD_BEFORE_', workDirectory, `Set-Location -LiteralPath '${workDirectory.replace(/'/g, "''")}';`, ';Start-Sleep -Seconds 10');
+      await restart(false);
+      await query('CWD_KEPT_', workDirectory);
+      await restart(true);
+      await query('CWD_RESET_', os.homedir());
+      console.log('GUI R retained the current directory and Shift+R restored the profile default');
     }
     if (checkNewWindow) {
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'N', code: 'KeyN', windowsVirtualKeyCode: 78, modifiers: 10 });
@@ -542,7 +581,7 @@ async function run() {
       const refocused = await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=${sourceId}] .xterm-helper-textarea')?.focus(); document.activeElement?.closest('.pane')?.dataset.pane` });
       if (refocused.result?.result?.value !== sourceId) throw new Error(`Source pane lost focus: ${JSON.stringify(refocused)}`);
     }
-    if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkHelp || checkCrt) await typeKeys('portal-exit');
+    if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkHelp || checkCrt || checkCwd) await typeKeys('portal-exit');
     else await enter('portal-exit');
     // The app may close before DevTools can acknowledge the Enter event.
     for (let attempt = 0; attempt < 80 && !exited; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 250));
