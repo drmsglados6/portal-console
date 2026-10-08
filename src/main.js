@@ -147,9 +147,10 @@ function installIpc() {
           let request;
           if (input.key === 'F1' || input.control && input.shift && input.code === 'KeyH') request = { action: 'help' };
           else if (input.control && input.key === 'Tab') request = { action: 'cycle', value: input.shift ? -1 : 1 };
-          else if (input.control && !input.shift && ['1', '2'].includes(input.key)) request = { action: 'select', value: Number(input.key) };
+          else if (input.control && !input.shift && (['1', '2'].includes(input.key) || ['Digit1', 'Digit2'].includes(input.code))) request = { action: 'select', value: Number(['Digit1', 'Digit2'].includes(input.code) ? input.code.slice(-1) : input.key) };
           if (request && mainWindow && !mainWindow.webContents.isDestroyed()) {
-            event.preventDefault(); mainWindow.webContents.send('media:control', { guestId: contents.id, ...request });
+            event.preventDefault(); mainWindow.webContents.focus();
+            mainWindow.webContents.send('media:control', { guestId: contents.id, ...request });
           }
         }
       });

@@ -56,9 +56,10 @@ async function run() {
     fs.mkdirSync(folder);
     fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({ controls: { closeSelectionSyntax: 'regex' } }));
   }
-  const workDirectory = path.join(configHome, 'work dir');
+  let workDirectory = path.join(configHome, 'work dir');
   if (checkCwd) {
     fs.mkdirSync(workDirectory);
+    workDirectory = fs.realpathSync.native(workDirectory);
     const folder = path.join(configHome, 'portal-console');
     fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({ mode: 'modern', fullscreen: false,
@@ -380,7 +381,9 @@ async function run() {
       await wait("!document.querySelector('.media-web').classList.contains('pane-maximized')", 'web guest restore');
       await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F1'})");
       await wait("document.querySelector('#help-dialog').open", 'help from embedded browser');
-      await evaluate("document.querySelector('#help-close').click();document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'1',modifiers:['control']})");
+      await evaluate("document.querySelector('#help-close').click()");
+      await wait("!document.querySelector('#help-dialog').open", 'help close before terminal selection');
+      await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'1',modifiers:['control']});document.querySelector('.media-web webview').sendInputEvent({type:'keyUp',keyCode:'1',modifiers:['control']})");
       await wait("document.activeElement?.closest('[data-pane]')?.dataset.pane==='main'", 'browser-to-terminal selection');
       const recorded = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `(async()=>{
         const canvas=document.createElement('canvas');canvas.width=canvas.height=32;
