@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.6` (latest tagged release: `0.1.6`)
+- Source version: `0.1.7` (latest tagged release: `0.1.6`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -213,3 +213,11 @@ The v0.1.5 resolver used the application launch directory for relative portal-me
 
 All platform builds, packaged GUI checks and release publication passed: <https://github.com/drmsglados6/portal-console/actions/runs/37860751117>.
 Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.6>.
+
+## Mouse tracking, scrolling and macOS signing (0.1.7)
+
+Reported SGR 35 mouse motion was reaching an Ubuntu SSH shell. `src/mouse-input.js` suppresses idle normal-screen motion in local mode before xterm auto-scrolls and again at the outgoing packet boundary. Alternate-screen apps, Alt override and application mode remain enabled. Returning from alternate screen resets leaked tracking. Ctrl+Shift+M / command-mode M resets mouse tracking without restarting a PTY.
+
+GUI tests cover any-event tracking, alternate-screen motion, normal-shell suppression, wheel history retention after hover, small pixel deltas and manual reset on all OS runners. Mac Intel's reported all-terminal scroll failure still needs confirmation on the user's actual machine.
+
+v0.1.6 build logs showed macOS signing was skipped. The build now explicitly uses ad-hoc identity with hardened runtime off and no notarization. Codesign verification is added for the app, ZIP/DMG and after helper install. Mac install records move beside the .app so the signed bundle is not modified. This does not provide Developer ID trust/notarization or guarantee downloaded Gatekeeper approval. The ARM64 user installed by dragging from DMG, so the helper-record issue is a separate defect from that report.

@@ -44,7 +44,7 @@ async function run() {
   let auxMediaDirectory = path.join(configHome, 'aux directory');
   if (checkWheel) {
     const mock = path.join(configHome, 'mouse-server.js');
-    fs.writeFileSync(mock, "process.stdout.write('\\x1b[?1000h\\x1b[?1006hMOCK_READY\\r\\n'); for(let i=0;i<120;i++)process.stdout.write('LINE_'+i+'\\r\\n'); process.stdin.resume(); process.stdin.on('data', () => {});\n");
+    fs.writeFileSync(mock, "process.stdin.setRawMode(true);process.stdin.resume();process.stdin.on('data',()=>{});process.stdout.write('MOCK_NATIVE_READY\\r\\n');\n");
     const folder = path.join(configHome, 'portal-console');
     fs.mkdirSync(folder);
     fs.writeFileSync(path.join(folder, 'config.json'), JSON.stringify({
@@ -118,8 +118,9 @@ async function run() {
     }));
   }
   fs.writeFileSync(path.join(configHome, 'package.json'), JSON.stringify({ name: 'portal-gui-exit-check', main: 'main.js' }));
-  const mockWindowLaunch = checkNewWindow ? "const cp=require('node:child_process'),realSpawn=cp.spawn; cp.spawn=function(file,args,options){if(file===process.execPath&&options?.detached){process.stdout.write('NEW_WINDOW_SPAWN '+JSON.stringify(args)+'\\n');return {pid:12345,on(){return this},unref(){}};}return realSpawn.apply(this,arguments)};" : '';
-  fs.writeFileSync(path.join(configHome, 'main.js'), `${mockWindowLaunch} const {ipcMain,BrowserWindow}=require('electron'); ipcMain.on('terminal:write',(_event,value)=>process.stdout.write('WRITE '+JSON.stringify(value)+'\\n')); ipcMain.on('app:quit',()=>process.stdout.write('QUIT\\n')); require(${JSON.stringify(path.join(__dirname, '..', 'src', 'main.js'))}); ${checkWheel ? "setTimeout(()=>BrowserWindow.getAllWindows()[0]?.webContents.send('terminal:data',{id:'main',data:'\\x1b[?1000h\\x1b[?1006h',generation:1}),4000);" : ''}\n`);
+  let mockWindowLaunch = checkNewWindow ? "const cp=require('node:child_process'),realSpawn=cp.spawn; cp.spawn=function(file,args,options){if(file===process.execPath&&options?.detached){process.stdout.write('NEW_WINDOW_SPAWN '+JSON.stringify(args)+'\\n');return {pid:12345,on(){return this},unref(){}};}return realSpawn.apply(this,arguments)};" : '';
+  if (checkWheel) mockWindowLaunch += `require(${JSON.stringify(require.resolve('node-pty'))}).spawn=()=>({pid:0,onData(callback){this.output=callback;queueMicrotask(()=>callback('MOCK_NATIVE_READY\\r\\n'));return{dispose(){}}},onExit(){return{dispose(){}}},write(command){const data=command==='PORTAL_TEST_INITIAL'?'\\x1b[?1003h\\x1b[?1006h'+Array.from({length:120},(_,i)=>'LINE_'+i+'\\r\\n').join(''):command==='PORTAL_TEST_ALT'?'\\x1b[?1049h\\x1b[?1003h\\x1b[?1006hALT_READY':command==='PORTAL_TEST_NORMAL_MOUSE'?'\\x1b[?1003h\\x1b[?1006h':command==='PORTAL_TEST_NORMAL'?'\\x1b[?1049l':'';if(data)this.output(data)},resize(){},pause(){},resume(){},kill(){}});`;
+  fs.writeFileSync(path.join(configHome, 'main.js'), `${mockWindowLaunch} const {ipcMain,BrowserWindow}=require('electron'); ipcMain.on('terminal:write',(_event,value)=>process.stdout.write('WRITE '+JSON.stringify(value)+'\\n')); ipcMain.on('app:quit',()=>process.stdout.write('QUIT\\n')); require(${JSON.stringify(path.join(__dirname, '..', 'src', 'main.js'))});\n`);
   if (checkMedia) fs.appendFileSync(path.join(configHome, 'main.js'), "require('electron').app.whenReady().then(()=>{ipcMain.removeHandler('clipboard:read');ipcMain.handle('clipboard:read',()=> 'https://example.org/');BrowserWindow.getAllWindows()[0]?.webContents.setBackgroundThrottling(false);});\n");
   const child = spawn(electron, [...(packaged ? ['--config', path.join(configHome, 'portal-console', 'config.json'), `--user-data-dir=${path.join(configHome, 'runtime')}`, '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] : [configHome]), '--windowed', ...(checkPreset ? ['--preset', '3x2'] : []), `--remote-debugging-port=${port}`], {
     stdio: 'pipe', env: { ...process.env, APPDATA: configHome, XDG_CONFIG_HOME: configHome, PORTAL_CONSOLE_LOG_DIR: path.join(configHome, 'logs') }
@@ -316,29 +317,97 @@ async function run() {
       await send('Runtime.evaluate', { expression: "document.querySelector('[data-pane=main] .xterm-helper-textarea').focus()" });
     }
     if (checkWheel) {
+      const waitForMouseScreen = async (text) => {
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          const current = await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=main] .xterm-rows')?.textContent.includes(${JSON.stringify(text)})` });
+          if (current.result?.result?.value) return;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        const screen = await send('Runtime.evaluate', { expression: "document.querySelector('[data-pane=main] .xterm-rows')?.textContent" });
+        throw new Error(`Mouse test screen did not show ${text}: screen=${JSON.stringify(screen)} writes=${writes} errors=${errors}`);
+      };
+      await send('Runtime.evaluate', { expression: "window.portalConsole.write('main','PORTAL_TEST_INITIAL')" });
+      await waitForMouseScreen('LINE_119');
       let area;
       for (let attempt = 0; attempt < 60; attempt += 1) {
         area = await send('Runtime.evaluate', { expression: "({enabled:!!document.querySelector('[data-pane=main] .xterm.enable-mouse-events'),rect:(()=>{const r=document.querySelector('[data-pane=main] .xterm-screen')?.getBoundingClientRect(); return r && {x:r.x+r.width/2,y:r.y+r.height/2}})()})", returnByValue: true });
-        if (area.result?.result?.value?.enabled && area.result.result.value.rect) break;
+        if (area.result?.result?.value?.enabled && area.result.result.value.rect) {
+          const lines = await send('Runtime.evaluate', { expression: "document.querySelector('[data-pane=main] .xterm-rows')?.textContent.includes('LINE_119')" });
+          if (lines.result?.result?.value) break;
+        }
         await new Promise((resolve) => setTimeout(resolve, 250));
       }
       if (!area.result?.result?.value?.enabled) {
         const state = await send('Runtime.evaluate', { expression: "document.querySelector('[data-pane=main] .xterm-rows')?.textContent?.slice(0, 900)" });
         throw new Error(`Remote mouse tracking did not activate: ${JSON.stringify(area)} screen=${JSON.stringify(state)} writes=${writes} errors=${errors}`);
       }
-      const before = writes.length;
+      await send('Runtime.evaluate', { expression: "window.portalConsole.write('main','PORTAL_TEST_ALT')" });
+      // Enter and leave a mouse-tracking TUI without sending mouse-disable codes.
+      // This reproduces a program that leaks 1003/1006 after exit.
+      await waitForMouseScreen('ALT_READY');
+      await send('Runtime.evaluate', { expression: "window.portalConsole.write('main','PORTAL_TEST_NORMAL')" });
+      await waitForMouseScreen('LINE_119');
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const reset = await send('Runtime.evaluate', { expression: "!document.querySelector('[data-pane=main] .xterm').classList.contains('enable-mouse-events')" });
+        if (reset.result?.result?.value) break;
+        if (attempt === 39) throw new Error('Mouse modes were not reset after alternate-screen exit');
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      // A normal-screen program can still explicitly enable mouse handling.
+      // Refresh modes through the mock to verify the normal/alternate policy.
+      await send('Runtime.evaluate', { expression: "window.portalConsole.write('main','PORTAL_TEST_ALT')" });
+      await waitForMouseScreen('ALT_READY');
+      const alternateStart = writes.length;
       const { x, y } = area.result.result.value.rect;
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + 18, y });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      if (!/\\u001b\[<35;/.test(writes.slice(alternateStart))) throw new Error(`Alternate-screen motion did not reach application: ${writes.slice(alternateStart)}`);
+      await send('Runtime.evaluate', { expression: "window.portalConsole.write('main','PORTAL_TEST_NORMAL')" });
+      await waitForMouseScreen('LINE_119');
+      // Mouse reset at alternate exit has already removed the leaked mode.
+      const normalStart = writes.length;
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + 36, y });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      if (/\\u001b\[<35;/.test(writes.slice(normalStart))) throw new Error('Leaked mouse motion reached the shell');
+      console.log('Mouse motion stayed in the TUI and tracking reset on return to normal screen');
+      // Re-enable normal-screen tracking for the existing local-wheel test.
+      await send('Runtime.evaluate', { expression: "window.portalConsole.write('main','PORTAL_TEST_NORMAL_MOUSE')" });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const staleMotionStart = writes.length;
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + 54, y });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      if (/\\u001b\[<35;/.test(writes.slice(staleMotionStart))) throw new Error('Normal-screen idle motion was not filtered');
+      const altMotionStart = writes.length;
+      await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=main] .xterm').dispatchEvent(new MouseEvent('mousemove',{clientX:${x + 72},clientY:${y},buttons:0,altKey:true,bubbles:true}))` });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      if (!/\\u001b\[<43;/.test(writes.slice(altMotionStart))) throw new Error('Alt motion did not reach the normal-screen application');
+      const before = writes.length;
       const previous = await send('Runtime.evaluate', { expression: "Number((document.querySelector('[data-pane=main] .xterm-rows')?.textContent.match(/LINE_(\\d+)/g)||[]).at(-1)?.slice(5))" });
-      await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaY: -120, deltaX: 0 });
+      socket.send(JSON.stringify({ id: ++id, method: 'Input.dispatchMouseEvent', params: { type: 'mouseWheel', x, y, deltaY: -120, deltaX: 0, modifiers: 0 } }));
       await new Promise((resolve) => setTimeout(resolve, 800));
       const wheelOutput = writes.slice(before);
       if (/\\u001b\[<6[45];/.test(wheelOutput) || /\\u001b\[M/.test(wheelOutput)) throw new Error(`Mouse wheel leaked to remote PTY: ${wheelOutput}`);
       const next = await send('Runtime.evaluate', { expression: "Number((document.querySelector('[data-pane=main] .xterm-rows')?.textContent.match(/LINE_(\\d+)/g)||[]).at(-1)?.slice(5))" });
-      if (!(next.result?.result?.value < previous.result?.result?.value)) throw new Error(`Local wheel did not scroll history: before=${JSON.stringify(previous)}, after=${JSON.stringify(next)}`);
+      if (!(next.result?.result?.value < previous.result?.result?.value)) throw new Error(`Local wheel did not scroll history: before=${JSON.stringify(previous)}, after=${JSON.stringify(next)}, writes=${wheelOutput}`);
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + 90, y });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const afterMotion = await send('Runtime.evaluate', { expression: "Number((document.querySelector('[data-pane=main] .xterm-rows')?.textContent.match(/LINE_(\\d+)/g)||[]).at(-1)?.slice(5))" });
+      if (afterMotion.result?.result?.value !== next.result?.result?.value) throw new Error(`Mouse motion reset scrollback: before=${JSON.stringify(next)}, after=${JSON.stringify(afterMotion)}`);
+      for (let event = 0; event < 20; event += 1) socket.send(JSON.stringify({ id: ++id, method: 'Input.dispatchMouseEvent', params: { type: 'mouseWheel', x, y, deltaY: -4, deltaX: 0, modifiers: 0 } }));
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const afterTrackpad = await send('Runtime.evaluate', { expression: "Number((document.querySelector('[data-pane=main] .xterm-rows')?.textContent.match(/LINE_(\\d+)/g)||[]).at(-1)?.slice(5))" });
+      if (!(afterTrackpad.result?.result?.value < afterMotion.result?.result?.value)) throw new Error('Small pixel wheel events did not accumulate into history scrolling');
       const modifierStart = writes.length;
       await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaY: -120, deltaX: 0, modifiers: 1 });
       await new Promise((resolve) => setTimeout(resolve, 400));
       if (!/\\u001b\[<(?:64|72);/.test(writes.slice(modifierStart))) throw new Error(`Alt+wheel did not reach the remote application: ${writes.slice(modifierStart)}`);
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'M', code: 'KeyM', modifiers: 10 });
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const reset = await send('Runtime.evaluate', { expression: "!document.querySelector('[data-pane=main] .xterm').classList.contains('enable-mouse-events')" });
+        if (reset.result?.result?.value) break;
+        if (attempt === 39) throw new Error('Ctrl+Shift+M did not reset mouse tracking');
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
       console.log('GUI wheel stayed local while remote mouse reporting was enabled');
     }
     if (checkMedia) {

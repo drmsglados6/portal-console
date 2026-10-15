@@ -58,6 +58,8 @@ function helpSections(frontend, config) {
       ['Ctrl+V / Mac Cmd+V / Shift+Insert', 'Paste into the focused terminal. Ctrl+Insert copies; right-click copies a selection or pastes.'],
       ['Ctrl++ / Ctrl+- / Ctrl+0', 'Increase / decrease / reset terminal font size (including numpad keys).'],
       ['Mouse wheel / Alt+wheel', 'Scroll local shell history; alternate-screen apps receive wheel events. Alt+wheel always defers to the app.'],
+      ['Mouse recovery Ctrl+Shift+M', 'Reset leaked mouse tracking in the focused terminal without restarting SSH or the shell. Command mode M does the same.'],
+      ['Normal-screen mouse motion', 'Default local mode suppresses idle motion reports and keeps history from jumping to the bottom. Alternate-screen apps and Alt motion still work. mouseWheelMode: application opts in to native handling everywhere.'],
       ['CRT button', 'Adjust glow, scanlines, vignette and glass. Changes are window-local; appearance.crt stores startup defaults.'],
       ['kind: image / pdf / video / web', 'Display configured media, or use portal-media to append a pane without restarting terminals.'],
       ['Pane appearance / startupCommand', 'Set per-pane font/colors and a command for newly created or manually restarted panes.'],

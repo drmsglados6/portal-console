@@ -5,6 +5,7 @@ const { portalCommandInput } = require('../portal-command');
 const { remapPreset } = require('../preset-switch');
 const { selectWindowNumbers } = require('../window-selection');
 const { wheelScrollHandler } = require('../wheel-scroll');
+const { filterMouseMotion, resetMouseTracking, resetAfterAlternateScreen, shellMouseMotionHandler } = require('../mouse-input');
 const { helpSections } = require('../help');
 const { appendMediaPane, removeMediaPane, inferMediaKind } = require('../media-command');
 const { createMediaView } = require('./media-view');
@@ -253,6 +254,8 @@ async function switchPreset(name, sourceId) {
       if (pane) {
         pane.observer.disconnect();
         pane.wheelTarget.removeEventListener('wheel', pane.wheelListener, true);
+        pane.wheelTarget.removeEventListener('mousemove', pane.mouseMotionListener, true);
+        pane.mouseResetSubscription.dispose();
         clearTimeout(pane.startupTimer);
         pane.terminal.dispose();
         pane.element.remove();
@@ -433,7 +436,12 @@ async function terminalElement(spec) {
   const wheelTarget = terminal.element;
   const wheelListener = wheelScrollHandler(terminal, () => terminal.options.fontSize, () => config.appearance.mouseWheelMode);
   wheelTarget.addEventListener('wheel', wheelListener, { capture: true, passive: false });
+  const mouseResetSubscription = resetAfterAlternateScreen(terminal, () => config.appearance.mouseWheelMode);
+  const mouseMotionListener = shellMouseMotionHandler(terminal, () => config.appearance.mouseWheelMode);
+  wheelTarget.addEventListener('mousemove', mouseMotionListener, { capture: true });
   terminal.onData((data) => {
+    data = filterMouseMotion(data, terminal.buffer.active.type, config.appearance.mouseWheelMode);
+    if (!data) return;
     const command = commandInput(data);
     if (command?.type === 'exit') window.portalConsole.quit();
     else if (command?.type === 'preset') switchPreset(command.name, spec.id);
@@ -452,7 +460,7 @@ async function terminalElement(spec) {
   });
   const observer = new ResizeObserver(() => fitPane(spec.id));
   observer.observe(host);
-  const paneState = { spec, element: pane, terminal, fit, observer, commandInput, wheelTarget, wheelListener, generation: 0, pendingStartup: spec.startupCommand || null };
+  const paneState = { spec, element: pane, terminal, fit, observer, commandInput, wheelTarget, wheelListener, mouseResetSubscription, mouseMotionListener, generation: 0, pendingStartup: spec.startupCommand || null };
   panes.set(spec.id, paneState);
   const created = await window.portalConsole.create({ id: spec.id, cols: 80, rows: 24 });
   paneState.generation = created.generation;
@@ -840,6 +848,14 @@ function bindKeys() {
     }
     let handled = true;
     if (helpKey) showHelp(focusedId, false);
+    else if (event.ctrlKey && event.shiftKey && event.code === 'KeyM' || commandMode && event.key.toLowerCase() === 'm') {
+      const pane = panes.get(focusedId);
+      if (pane) {
+        resetMouseTracking(pane.terminal);
+        if (commandMode) setCommandMode(true, 'MOUSE TRACKING RESET   ESC/I TERMINAL');
+        else showStatus('MOUSE TRACKING RESET');
+      }
+    }
     else if (endingPlayback && event.code === 'Space') pauseEndingPlayback();
     else if (endingPlayback && (event.key === 'Escape' || event.key.toLowerCase() === 'q')) stopEndingPlayback();
     else if (endingPlayback && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {

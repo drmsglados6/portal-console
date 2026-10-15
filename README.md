@@ -215,7 +215,21 @@ GitHub Actionsの **Build and release** はmainへのpush、pull request、手�
 | macOS Intel | macos-15-intel | dmg、zip |
 | macOS Apple Silicon | macos-15 | dmg、zip |
 
-各ジョブは `npm ci` →テスト→パッケージ生成→同梱Electronでnode-ptyとsharpの動作確認を行います。Actionsの実行詳細から成果物を14日間取得できます。CI成果物は開発用の未署名ビルドです。正式な署名・macOS公証は別途設定が必要です。
+各ジョブは `npm ci` →テスト→パッケージ生成→同梱Electronでnode-ptyとsharpの動作確認を行います。Actionsの実行詳細から成果物を14日間取得できます。Windowsは開発用の未署名ビルド、macOSはアドホック署名ビルドです。Developer ID署名・Apple公証は未設定です。
+
+#### macOSの署名と初回起動
+
+v0.1.6では署名処理がスキップされていたため、ダウンロード後に「破損している」と表示される原因になり得ました。v0.1.7以降はアドホック署名を明示し、未展開のアプリ・ZIPからの展開・DMG内・補助インストール後について `codesign --verify --deep --strict` をCIで検証します。
+
+アドホック署名の整合性検証とGatekeeperによる配布元の承認は別です。Developer ID署名・公証のない開発版なので、ダウンロードしたアプリの初回起動はmacOSの「プライバシーとセキュリティ」で実行許可が必要になることがあります。システム全体のGatekeeperを無効にする必要はありません。
+
+問題が続く場合は、次の結果と実際のエラー文を確認してください（インストール先に合わせて変更）。
+
+```sh
+codesign --verify --deep --strict --verbose=2 "$HOME/Applications/portal-console.app"
+spctl --assess --type execute --verbose=4 "$HOME/Applications/portal-console.app"
+xattr -l "$HOME/Applications/portal-console.app"
+```
 
 リリース時は `package.json` のバージョンに合わせた `v0.1.0` のようなタグをpushします。全OSのビルド成功後、そのタグのGitHub Releaseへ成果物を自動添付します。通常のpushや手動実行ではReleaseは作成しません。
 
@@ -279,7 +293,7 @@ npm run installer:win
 
 ### Installation Method and Updates (0.1.3+)
 
-インストーラはアプリ本体の `.portal-console-install.json` に方式、バージョン、日時、前の方式／バージョンを記録します。判別にはこの記録を優先し、記録のない旧版は既存のランチャー／アンインストーラ、dpkg情報、macOSのBundle IDから確認します。記録にはユーザー名、パスワード、トークンは含めません。
+インストーラは `.portal-console-install.json` に方式、バージョン、日時、前の方式／バージョンを記録します。macOSは署名済み`.app`を変更しないよう、アプリの隣の`portal-console.app.portal-console-install.json`に保存します。それ以外はアプリ本体のフォルダ内です。判別にはこの記録を優先し、記録のない旧版は既存のランチャー／アンインストーラ、dpkg情報、macOSのBundle IDから確認します。記録にはユーザー名、パスワード、トークンは含めません。
 
 | 方式 | 更新・記録 |
 | --- | --- |
@@ -554,6 +568,10 @@ GUI版では `Ctrl++`、`Ctrl+-`、`Ctrl+0` でターミナルと画像AAの文�
 ヘッドレス版のフォントサイズはホスト側ターミナルの設定で変更してください。
 
 GUI版のホイールは既定で `appearance.mouseWheelMode: "local"` とし、通常画面では端末の履歴をローカルでスクロールします。代替画面のアプリにはホイールを渡します。通常画面のリモートTUIへホイールを渡したいときは `Alt` を押しながら回すか、`"application"` に変更してください。
+
+通常画面では、ボタンを押していないマウス移動のSGRレポートも抑制します。これによりSSH先のシェルへ `^[[<35;...M` が流れることと、マウス移動だけで履歴が最下部へ戻ることを防ぎます。代替画面から通常画面へ戻る際はマウス追跡モードを解除します。通常画面でもアプリ独自の移動追跡が必要なら `Alt` を押すか `mouseWheelMode: "application"` を選びます。
+
+追跡状態が残った場合は、対象端末を選んで **Ctrl+Shift+M**（またはコマンドモードの`M`）でリセットできます。PTYやSSH接続は再起動せず、履歴も消しません。
 
 安定性を優先し、GPUハードウェアアクセラレーションは既定で無効です。必要な場合だけ `appearance.hardwareAcceleration` を `true` にしてください。異常終了の情報とPTYの流量制御履歴は、設定ディレクトリの `diagnostics.log` に記録されます。
 

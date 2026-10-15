@@ -40,6 +40,8 @@ jobs:
             arch: arm64
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Explicit ad-hoc identity only; no signing certificate secrets are used.
+      CSC_FOR_PULL_REQUEST: 'true'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -62,9 +64,19 @@ jobs:
         run: npm run dist -- --${{ matrix.platform }} --${{ matrix.arch }} --publish never
       - name: Verify packaged native dependencies
         run: node scripts/check-packaged.js
+      - name: Verify macOS app and archive signatures
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash scripts/check-mac-signatures.sh "release/${{ matrix.arch == 'arm64' && 'mac-arm64' || 'mac' }}/portal-console.app" release/portal-console-*-mac-${{ matrix.arch }}.zip release/portal-console-*-mac-${{ matrix.arch }}.dmg
       - name: Verify CRT controls on Windows
         if: runner.os == 'Windows'
         run: node scripts/check-gui-exit.js --crt --help --cwd
+      - name: Verify terminal mouse and scroll modes
+        if: runner.os != 'Linux'
+        run: node scripts/check-gui-exit.js --wheel
+      - name: Verify terminal mouse and scroll modes on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/check-gui-exit.js --wheel
       - name: Verify packaged media controls
         if: runner.os != 'Linux'
         run: node scripts/check-gui-exit.js --media --packaged
@@ -97,7 +109,8 @@ jobs:
           ditto "release/${{ matrix.arch == 'arm64' && 'mac-arm64' || 'mac' }}/portal-console.app" "$directory/portal-console.app"
           sh installer/install-unix.sh release/portal-console-*-mac-${{ matrix.arch }}.dmg "$directory"
           sh installer/install-unix.sh release/portal-console-*-mac-${{ matrix.arch }}.zip "$directory"
-          node -e 'const fs=require("fs"),p=require("path");const r=JSON.parse(fs.readFileSync(p.join(process.argv[1],"portal-console.app/.portal-console-install.json")));if(r.method!=="mac-zip"||r.previousMethod!=="mac-dmg"||!r.previousVersion)process.exit(1)' "$directory"
+          codesign --verify --deep --strict "$directory/portal-console.app"
+          node -e 'const fs=require("fs"),p=require("path");const r=JSON.parse(fs.readFileSync(p.join(process.argv[1],"portal-console.app.portal-console-install.json")));if(r.method!=="mac-zip"||r.previousMethod!=="mac-dmg"||!r.previousVersion)process.exit(1)' "$directory"
       - name: Verify packaged headless launcher
         if: runner.os == 'Linux'
         run: python3 scripts/check-headless.py

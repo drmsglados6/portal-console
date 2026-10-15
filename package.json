@@ -1,6 +1,6 @@
 {
   "name": "portal-console",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A Portal-inspired multi-screen terminal for Linux, macOS, and Windows",
   "author": "Portal Console contributors",
   "homepage": "https://github.com/drmsglados6/portal-console",
@@ -62,6 +62,9 @@
       "category": "Utility"
     },
     "mac": {
+      "identity": "-",
+      "hardenedRuntime": false,
+      "notarize": false,
       "extraResources": [
         {
           "from": "node_modules/node-pty/prebuilds/darwin-x64",

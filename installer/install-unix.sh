@@ -104,20 +104,25 @@ else
     LEGACY_VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$TARGET/Contents/Info.plist")
     LEGACY_METHOD=mac-app
   fi
-  STAGE="$TARGET.new.$$"
-  BACKUP="$TARGET.previous.$$"
+  STAGE="$(dirname -- "$TARGET")/.portal-console-stage-$$.app"
+  BACKUP="$(dirname -- "$TARGET")/.portal-console-previous-$$.app"
   ditto "$APP" "$STAGE"
-  if [ -f "$TARGET/.portal-console-install.json" ]; then cp "$TARGET/.portal-console-install.json" "$STAGE/.portal-console-install.json"; fi
-  ELECTRON_RUN_AS_NODE=1 "$STAGE/Contents/MacOS/portal-console" "$STAGE/Contents/Resources/app.asar/src/install-record-cli.js" "$STAGE" "$METHOD" '' "$LEGACY_VERSION" "$LEGACY_METHOD"
+  RECORD="$TARGET.portal-console-install.json"
+  if [ -f "$RECORD" ]; then cp "$RECORD" "$WORK/.portal-console-install.json"
+  elif [ -f "$TARGET/.portal-console-install.json" ]; then cp "$TARGET/.portal-console-install.json" "$WORK/.portal-console-install.json"; fi
+  # Metadata lives beside the installed app, never inside the signed bundle.
+  ELECTRON_RUN_AS_NODE=1 "$STAGE/Contents/MacOS/portal-console" "$STAGE/Contents/Resources/app.asar/src/install-record-cli.js" "$WORK" "$METHOD" '' "$LEGACY_VERSION" "$LEGACY_METHOD"
+  codesign --verify --deep --strict "$STAGE"
   if [ -e "$TARGET" ]; then mv "$TARGET" "$BACKUP"; fi
   if mv "$STAGE" "$TARGET"; then
+    mv -f "$WORK/.portal-console-install.json" "$RECORD"
     if [ -d "$BACKUP" ]; then rm -rf -- "$BACKUP"; fi
   else
     if [ -d "$BACKUP" ]; then mv "$BACKUP" "$TARGET"; fi
     exit 1
   fi
   mkdir -p "$(dirname -- "$LOG")"
-  cat "$TARGET/.portal-console-install.json" >> "$LOG"
+  cat "$RECORD" >> "$LOG"
   printf '\n' >> "$LOG"
 fi
 echo "Installed to $TARGET; log: $LOG"
