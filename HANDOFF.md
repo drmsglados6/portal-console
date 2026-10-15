@@ -2,7 +2,7 @@
 
 ## Current State
 
-- Source version: `0.1.7` (latest tagged release: `0.1.6`)
+- Source version: `0.1.7` (latest tagged release: `0.1.7`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -215,6 +215,9 @@ All platform builds, packaged GUI checks and release publication passed: <https:
 Release: <https://github.com/drmsglados6/portal-console/releases/tag/v0.1.6>.
 
 ## Mouse tracking, scrolling and macOS signing (0.1.7)
+
+Released: https://github.com/drmsglados6/portal-console/releases/tag/v0.1.7
+Tagged release CI passed all jobs, including macOS Intel/ARM64 signatures and helper updates, all-platform mouse/scroll checks, and legacy deb upgrade: https://github.com/drmsglados6/portal-console/actions/runs/38666142971 . All 15 release assets are uploaded. User-machine Mac verification remains pending.
 
 Reported SGR 35 mouse motion was reaching an Ubuntu SSH shell. `src/mouse-input.js` suppresses idle normal-screen motion in local mode before xterm auto-scrolls and again at the outgoing packet boundary. Alternate-screen apps, Alt override and application mode remain enabled. Returning from alternate screen resets leaked tracking. Ctrl+Shift+M / command-mode M resets mouse tracking without restarting a PTY.
 
