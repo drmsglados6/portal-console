@@ -1,5 +1,6 @@
 param([string]$InstallDir, [switch]$CheckOnly, [switch]$Yes)
 $ErrorActionPreference = 'Stop'
+$env:PSModulePath = (Join-Path $PSHOME 'Modules') + ';' + $env:PSModulePath
 if (!$InstallDir) {
   $InstallDir = [Environment]::GetEnvironmentVariable('PORTAL_CONSOLE_HOME', 'User')
   if (!$InstallDir) {

@@ -55,6 +55,7 @@
       "node_modules/@img/**/*"
     ],
     "afterPack": "scripts/after-pack.js",
+    "afterAllArtifactBuild": "scripts/after-all-artifact-build.js",
     "linux": {
       "maintainer": "Portal Console contributors <drmsglados6@users.noreply.github.com>",
       "target": [

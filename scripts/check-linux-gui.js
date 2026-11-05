@@ -54,18 +54,18 @@ async function check() {
     const crt = await evaluate(`({enabled: document.body.classList.contains('crt-enabled'),
       pointer: getComputedStyle(document.querySelector('.terminal-pane'), '::after').pointerEvents,
       glow: getComputedStyle(document.querySelector('.xterm-rows')).textShadow})`);
-    if (!crt.enabled || crt.pointer !== 'none' || crt.glow === 'none') throw new Error(`CRT effects missing: ${JSON.stringify(crt)}`);
-    await evaluate('document.querySelector("#crt-button").click(); document.querySelector("#crt-enabled").click()');
+    if (crt.enabled || crt.glow !== 'none') throw new Error(`CRT was not suspended: ${JSON.stringify(crt)}`);
+    await evaluate('document.querySelector("#crt-button").click()');
     const disabled = await evaluate('!document.body.classList.contains("crt-enabled") && getComputedStyle(document.querySelector(".terminal-pane"), "::after").content === "none"');
     if (!disabled) throw new Error('CRT disable failed');
-    await evaluate('document.querySelector("#crt-enabled").click(); document.querySelector("#crt-close").click()');
+    if (!await evaluate('!document.querySelector("#crt-dialog").open && document.querySelector("#crt-button").disabled')) throw new Error('Suspended CRT controls were enabled');
     await delay(500);
     if (/GLib-GObject:.*assertion/.test(errors)) throw new Error(`GTK assertion during GUI startup: ${errors}`);
     // Closing the app can close CDP before its evaluation response is sent.
     socket.send(JSON.stringify({ id: ++sequence, method: 'Runtime.evaluate', params: { expression: 'window.portalConsole.quit()' } }));
     const code = await Promise.race([exited, delay(10000).then(() => { throw new Error('GUI did not close'); })]);
     if (code !== 0) throw new Error(`GUI exit code: ${code}; ${errors}`);
-    console.log('Ubuntu GUI initialized three terminal panes, toggled CRT effects and closed cleanly');
+    console.log('Ubuntu GUI initialized three terminal panes with CRT suspended and closed cleanly');
   } finally {
     socket.close();
   }

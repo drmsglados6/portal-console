@@ -156,7 +156,9 @@ test('Windows worker rejects a tampered installer before changing the installati
   });
   fs.writeFileSync(plan.file, 'tampered');
   const worker = updater.workerCommand(plan);
-  const result = spawnSync(worker.command, [...worker.args, '-NonInteractive'], { encoding: 'utf8', timeout: 20000 });
+  const result = spawnSync(worker.command, [...worker.args, '-NonInteractive'], {
+    env: { ...process.env, PSModulePath: path.join(root, 'nonexistent-modules') }, encoding: 'utf8', timeout: 20000
+  });
   assert.equal(result.status, 1, result.stderr);
   assert.match(fs.readFileSync(plan.logFile, 'utf8'), /SHA-256/);
   assert.equal(fs.readFileSync(path.join(target, 'preserved'), 'utf8'), 'old app');

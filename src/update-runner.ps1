@@ -1,5 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$PlanFile, [switch]$NonInteractive, [switch]$NoRestart)
 $ErrorActionPreference = 'Stop'
+# A caller running pwsh can otherwise make Windows PowerShell load pwsh modules.
+$env:PSModulePath = (Join-Path $PSHOME 'Modules') + ';' + $env:PSModulePath
 $plan = Get-Content -LiteralPath $PlanFile -Raw -Encoding UTF8 | ConvertFrom-Json
 New-Item -ItemType Directory -Path (Split-Path -Parent $plan.logFile) -Force | Out-Null
 function Log([string]$Message) { Add-Content -LiteralPath $plan.logFile -Value "$(Get-Date -Format o) $Message" -Encoding UTF8 }
