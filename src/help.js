@@ -2,12 +2,12 @@ function helpSections(frontend, config) {
   const gui = frontend === 'gui';
   return [
     { title: 'INTERNAL COMMANDS (at a shell prompt)', entries: [
-      ['portal-help', gui ? 'Open this help; Esc or Close returns to the same terminal.' : 'Open paged help; Q/Esc/Enter returns to the same terminal.'],
-      ['portal-restart', 'Restart the current pane shell keeping its working directory. --reset-cwd restores the profile default. Running programs stop; other panes continue.'],
-      ['portal-media SOURCE', gui ? 'Open a new media pane; http(s) defaults to web, local files use their extension. Quote paths containing spaces.' : 'Graphical media requires the GUI; use w3m URL in a text terminal.'],
-      ['portal-media --kind TYPE --source SOURCE', 'Override detection with image/pdf/video/web. A linked PDF or video needs --kind pdf/video because URLs default to web.'],
-      ['portal-exit', 'Quit the entire application and stop all of its terminal sessions.'],
-      ['portal-preset NAME', gui ? 'Change modern layout live. Existing panes are retained; select panes to close when reducing their number.' : 'Live layout changes are GUI-only. Choose the layout at startup with --preset NAME.']
+      ['phelp / portal-help', gui ? 'Open this help; Esc or Close returns to the same terminal.' : 'Open paged help; Q/Esc/Enter returns to the same terminal.'],
+      ['prestart / portal-restart', 'Restart the current pane shell keeping its working directory. --reset-cwd restores the profile default. Running programs stop; other panes continue.'],
+      ['pmedia SOURCE / portal-media SOURCE', gui ? 'Open a new media pane; http(s) defaults to web, local files use their extension. Quote paths containing spaces.' : 'Graphical media requires the GUI; use w3m URL in a text terminal.'],
+      ['pmedia --kind TYPE --source SOURCE', 'Override detection with image/pdf/video/web. A linked PDF or video needs --kind pdf/video because URLs default to web.'],
+      ['pexit / portal-exit', 'Quit the entire application and stop all of its terminal sessions.'],
+      ['ppreset NAME / portal-preset NAME', gui ? 'Change modern layout live. Existing panes are retained; select panes to close when reducing their number.' : 'Live layout changes are GUI-only. Choose the layout at startup with --preset NAME.']
     ] },
     { title: 'PANE SELECTION', entries: gui ? [
       ['Click a terminal', 'Focus that pane.'],
@@ -45,6 +45,7 @@ function helpSections(frontend, config) {
       ...gui ? [
         ['F2 / Ctrl+Shift+2', 'Switch to original layout; F3 / Ctrl+Shift+3 switches to modern.'],
         ['Ctrl+Shift+N / Mac Cmd+N', 'Open an independent application window; the + WINDOW button does the same.'],
+        ['F4', 'Temporarily maximize the selected terminal or media pane; press again to restore. Selecting another pane or changing layout restores it.'],
         ['F11', 'Terminal focus toggles app fullscreen; media focus maximizes/restores its pane.'],
         ['Close-window selection', config.controls.closeSelectionSyntax === 'regex' ? 'Full-match regex on visible pane numbers, e.g. 1|3|5.' : '2,5 / 2-4 / !3 / !(2-4). The selected count must match the panes to close.']
       ] : [

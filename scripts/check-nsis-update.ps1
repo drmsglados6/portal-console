@@ -8,6 +8,9 @@ try {
     if ($process.ExitCode -ne 0) { throw "NSIS installer failed: $($process.ExitCode)" }
     $record = Get-Content -LiteralPath (Join-Path $directory '.portal-console-install.json') -Raw | ConvertFrom-Json
     if ($record.method -ne 'windows-nsis') { throw 'NSIS install record missing or incorrect' }
+    if (!(Test-Path -LiteralPath (Join-Path $directory 'pconsole.cmd'))) { throw 'pconsole launcher missing' }
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if (!(@($userPath -split ';') -contains $directory)) { throw 'pconsole installation directory missing from user PATH' }
     if ($attempt -eq 2 -and ($record.previousMethod -ne 'windows-nsis' -or !$record.previousVersion)) { throw 'NSIS upgrade history missing' }
   }
   'NSIS installation and recorded upgrade verified'

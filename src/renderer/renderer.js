@@ -482,11 +482,30 @@ function fitPane(id) {
   });
 }
 
+function restoreTerminalMaximize(exceptId) {
+  for (const [id, pane] of panes) {
+    if (id !== exceptId && pane.element.classList.contains('pane-maximized')) {
+      pane.element.classList.remove('pane-maximized');
+      fitPane(id);
+    }
+  }
+}
+
+function toggleFocusedMaximize() {
+  const view = media.get(focusedId);
+  if (view?.element.isConnected) { view.toggleMaximize(true); return; }
+  const pane = panes.get(focusedId);
+  if (!pane?.element.isConnected) return;
+  pane.element.classList.toggle('pane-maximized');
+  fitPane(focusedId);
+}
+
 function focusPane(id, focusControl = true) {
   const pane = panes.get(id);
   const view = media.get(id);
   if (!pane && !view) return;
   if (pane) lastTerminalId = id;
+  restoreTerminalMaximize(id);
   for (const [otherId, other] of media) if (otherId !== id) other.restoreMaximize();
   focusedId = id;
   document.querySelectorAll('.pane').forEach((element) => element.classList.toggle('focused', element.dataset.pane === id));
@@ -504,6 +523,8 @@ function terminalSpecs() {
 }
 
 async function renderLayout(nextMode) {
+  restoreTerminalMaximize();
+  for (const view of media.values()) view.restoreMaximize();
   if (nextMode === 'original') {
     for (const id of ['main', 'aux']) {
       if (!panes.has(id)) await terminalElement({ id, title: id === 'main' ? 'PRIMARY TERMINAL' : 'AUXILIARY TERMINAL', kind: 'terminal' });
@@ -841,13 +862,16 @@ function bindKeys() {
     if (presetDialog.open || helpDialog.open || replaceDialog.open || crtDialog.open || mediaDialog.open) return;
     const nativeInput = event.target instanceof HTMLElement && event.target.matches('input, select, textarea, [contenteditable="true"]') && !event.target.classList.contains('xterm-helper-textarea');
     const helpKey = event.key === 'F1' || event.ctrlKey && event.shiftKey && event.code === 'KeyH';
-    if (nativeInput && !helpKey && event.key !== 'F11' && !(event.key === 'Escape' && commandMode)) return;
+    if (nativeInput && !helpKey && !['F4', 'F11'].includes(event.key) && !(event.key === 'Escape' && commandMode)) return;
     const view = media.get(focusedId);
     if (!helpKey && !commandMode && !endingPlayback && view?.element.isConnected && view.handleKey(event)) {
       event.preventDefault(); event.stopPropagation(); return;
     }
     let handled = true;
-    if (helpKey) showHelp(focusedId, false);
+    if (event.key === 'F4' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && !endingPlayback) {
+      if (!event.repeat) toggleFocusedMaximize();
+    }
+    else if (helpKey) showHelp(focusedId, false);
     else if (event.ctrlKey && event.shiftKey && event.code === 'KeyM' || commandMode && event.key.toLowerCase() === 'm') {
       const pane = panes.get(focusedId);
       if (pane) {

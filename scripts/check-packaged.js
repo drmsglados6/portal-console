@@ -22,6 +22,26 @@ if (!process.argv.includes('--inside-electron')) {
 } else {
   const resources = process.argv[process.argv.indexOf('--inside-electron') + 1];
   async function check() {
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'portal cli '));
+    try {
+      const target = process.platform === 'linux' ? path.join(path.dirname(process.execPath), 'portal-console') : process.execPath;
+      const directory = path.join(temporary, 'bin with spaces');
+      const registered = spawnSync(process.execPath, [path.join(resources, 'app.asar', 'src', 'register-cli.js'), target, directory, '--skip-environment'], {
+        env: { ...process.env, PATH: temporary, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8', timeout: 20000
+      });
+      if (registered.status !== 0) throw new Error(`Packaged CLI registration failed: ${registered.error || registered.stderr}`);
+      const env = { ...process.env };
+      delete env.ELECTRON_RUN_AS_NODE;
+      const launched = process.platform === 'win32'
+        ? spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${path.join(directory, 'pconsole.cmd')}" --preset-list"`], { env, encoding: 'utf8', timeout: 20000, windowsVerbatimArguments: true })
+        : spawnSync(path.join(directory, 'pconsole'), ['--preset-list'], { env, encoding: 'utf8', timeout: 20000 });
+      if (launched.status !== 0 || !launched.stdout?.includes('3x2')) throw new Error(`Packaged pconsole launch failed: ${launched.error || launched.stderr}; ${launched.stdout}`);
+      console.log('Packaged pconsole registration and argument forwarding verified');
+    } finally {
+      fs.rmSync(temporary, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+    }
     const sharp = require(path.join(resources, 'app.asar', 'node_modules', 'sharp'));
     await sharp({ create: { width: 1, height: 1, channels: 4, background: '#000' } }).png().toBuffer();
     const pty = require(path.join(resources, 'app.asar', 'node_modules', 'node-pty'));

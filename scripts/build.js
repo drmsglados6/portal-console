@@ -22,10 +22,12 @@ const templates = path.join(root, 'node_modules/app-builder-lib/templates/linux'
 const afterInstall = fs.readFileSync(path.join(templates, 'after-install.tpl'), 'utf8');
 fs.writeFileSync(path.join(output, 'linux-after-install.sh'), afterInstall + `
 ELECTRON_RUN_AS_NODE=1 '/opt/\${sanitizedProductName}/portal-console-bin' '/opt/\${sanitizedProductName}/resources/app.asar/src/install-record-cli.js' '/opt/\${sanitizedProductName}' linux-deb /var/log/portal-console/install.log "$2" || exit 1
+ELECTRON_RUN_AS_NODE=1 '/opt/\${sanitizedProductName}/portal-console-bin' '/opt/\${sanitizedProductName}/resources/app.asar/src/register-cli.js' '/opt/\${sanitizedProductName}/portal-console' /usr/bin || exit 1
 `);
 const afterRemove = fs.readFileSync(path.join(templates, 'after-remove.tpl'), 'utf8');
 fs.writeFileSync(path.join(output, 'linux-after-remove.sh'), afterRemove + `
 if [ "$1" = remove ] || [ "$1" = purge ]; then
+  if [ "$(readlink /usr/bin/pconsole)" = '/opt/\${sanitizedProductName}/portal-console' ]; then rm -f /usr/bin/pconsole; fi
   rm -f '/opt/\${sanitizedProductName}/.portal-console-install.json'
 fi
 `);

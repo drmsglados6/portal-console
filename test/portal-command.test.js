@@ -69,6 +69,25 @@ test('portal-help is an internal command', () => {
   assert.deepEqual(portalCommandInput()('portal-help\r'), { type: 'help' });
 });
 
+test('short commands preserve long-command arguments, fragments and editing rules', () => {
+  for (const [short, long] of [
+    ['phelp', 'portal-help'], ['pexit', 'portal-exit'], ['prestart', 'portal-restart'],
+    ['prestart --reset-cwd', 'portal-restart --reset-cwd'], ['ppreset c1-2-1', 'portal-preset c1-2-1'],
+    ['pmedia "C:\\my pictures\\photo.jpg"', 'portal-media "C:\\my pictures\\photo.jpg"'],
+    ['pmedia --kind pdf --source https://example.com/book.pdf', 'portal-media --kind pdf --source https://example.com/book.pdf'],
+    ['pmedia', 'portal-media'], ['pmedia unknown.xyz', 'portal-media unknown.xyz']
+  ]) {
+    const input = portalCommandInput();
+    for (const character of short) assert.equal(input(character), null);
+    assert.deepEqual(input('\r'), portalCommandInput()(`${long}\r`), short);
+    assert.equal(input(`echo ${short}\r`), null);
+    assert.equal(input(`${short}\x1b[D\r`), null);
+  }
+  for (const line of ['phelpful', 'ppresetx 3x2', 'pexit extra', 'pmedia-other x.png', 'echo phelp', 'pconsole']) {
+    assert.equal(portalCommandInput()(`${line}\r`), null);
+  }
+});
+
 test('portal-restart is recognized only as a standalone command', () => {
   assert.deepEqual(portalCommandInput()('portal-restart\r'), { type: 'restart' });
   assert.deepEqual(portalCommandInput()('portal-restart --reset-cwd\r'), { type: 'restart', preserveCwd: false });

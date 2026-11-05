@@ -86,13 +86,13 @@ def check(arguments):
         wait_for(b'EXIT AND HELP NAVIGATION')
         os.write(master, b'q')
         assert shell_pid('aux_after_help') == auxiliary_pid
-        os.write(master, b'portal-help\r')
+        os.write(master, b'phelp\r')
         # Clear old output to verify that a new help screen is rendered.
         output = b''
         wait_for(b'PORTAL CONSOLE HELP')
         os.write(master, b'q')
         assert shell_pid('aux_after_command_help') == auxiliary_pid
-        prefix(b'q')
+        os.write(master, b'pexit\r')
         child.wait(timeout=10)
         assert child.returncode == 0, output[-16000:].decode(errors='replace')
         print(f'Headless next/previous, wrap, isolated restart, paged help and exit verified: {arguments or "automatic fallback"}')

@@ -26,12 +26,13 @@ function portalCommandInput() {
         continue;
       }
       if (character === '\r' || character === '\n') {
-        let command = !escaped && (line === 'portal-exit' ? { type: 'exit' }
-          : line === 'portal-help' ? { type: 'help' }
-          : /^portal-restart(?:\s+--reset-cwd)?$/.test(line) ? { type: 'restart', ...(line.endsWith('--reset-cwd') ? { preserveCwd: false } : {}) }
-          : /^portal-preset\s+(\S+)$/.test(line) ? { type: 'preset', name: line.match(/^portal-preset\s+(\S+)$/)[1] } : null);
-        if (!escaped && /^portal-media(?:\s|$)/.test(line)) {
-          try { command = { type: 'media', ...parseMediaCommand(line) }; }
+        const canonical = line.replace(/^p(exit|help|restart|preset|media)(?=\s|$)/, 'portal-$1');
+        let command = !escaped && (canonical === 'portal-exit' ? { type: 'exit' }
+          : canonical === 'portal-help' ? { type: 'help' }
+          : /^portal-restart(?:\s+--reset-cwd)?$/.test(canonical) ? { type: 'restart', ...(canonical.endsWith('--reset-cwd') ? { preserveCwd: false } : {}) }
+          : /^portal-preset\s+(\S+)$/.test(canonical) ? { type: 'preset', name: canonical.match(/^portal-preset\s+(\S+)$/)[1] } : null);
+        if (!escaped && /^portal-media(?:\s|$)/.test(canonical)) {
+          try { command = { type: 'media', ...parseMediaCommand(canonical) }; }
           catch (error) { command = { type: 'media', error: error.message, source: error.source }; }
         }
         line = '';

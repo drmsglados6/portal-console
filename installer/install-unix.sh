@@ -94,6 +94,7 @@ if [ "$METHOD" = linux-appimage ]; then
   ELECTRON_RUN_AS_NODE=1 "$RUNTIME" "$RESOURCES/app.asar/src/install-record-cli.js" "$TARGET" "$METHOD" "$LOG"
   mkdir -p "$HOME/.local/bin"
   ln -sfn "$TARGET/portal-console.AppImage" "$HOME/.local/bin/portal-console"
+  ELECTRON_RUN_AS_NODE=1 "$RUNTIME" "$RESOURCES/app.asar/src/register-cli.js" "$TARGET/portal-console.AppImage" "$HOME/.local/bin"
 else
   LEGACY_VERSION=''
   LEGACY_METHOD=''
@@ -124,5 +125,6 @@ else
   mkdir -p "$(dirname -- "$LOG")"
   cat "$RECORD" >> "$LOG"
   printf '\n' >> "$LOG"
+  ELECTRON_RUN_AS_NODE=1 "$TARGET/Contents/MacOS/portal-console" "$TARGET/Contents/Resources/app.asar/src/register-cli.js" "$TARGET/Contents/MacOS/portal-console" "$HOME/.local/bin"
 fi
 echo "Installed to $TARGET; log: $LOG"

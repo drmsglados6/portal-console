@@ -2,6 +2,9 @@
 
 ## Current State
 
+- Unreleased main changes after v0.1.7: F4 temporarily maximizes/restores the selected terminal or media pane; focus/layout changes restore it. `pconsole` is the new short launcher, and `phelp`, `ppreset`, `prestart`, `pmedia`, `pexit` alias the existing internal commands. Existing long names remain valid.
+- CLI aliases are registered by Windows NSIS/simple installers, Linux deb hooks, and the Unix helper for AppImage/Mac. The Unix helper uses `~/.local/bin`; copying a Mac app from DMG alone does not register a CLI. Installer registration preserves foreign commands named `pconsole`. Windows NSIS tracks whether it added the user PATH entry and removes only its own entry on uninstall.
+
 - Source version: `0.1.7` (latest tagged release: `0.1.7`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)

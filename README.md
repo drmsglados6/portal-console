@@ -6,6 +6,24 @@
 
 `original` の画面表現は、初代Portalのエンディングで歌詞、スタッフロール、右側AAが表示されるコンソール部分を視覚的な基準にしています。著作権のある歌詞やスタッフロール本文は同梱していませんが、通常のシェル出力やユーザー自身のスクリプトを同じ画面構成で表示できます。
 
+## 短い起動名・内部コマンド
+
+インストール後は新しい端末から **`pconsole`** で起動できます。例: `pconsole --preset 3x2`。WindowsはNSIS／簡易インストーラで登録、Linuxのdebは`/usr/bin/pconsole`、AppImageとMacは補助インストーラで`~/.local/bin/pconsole`を登録します。`~/.local/bin`がPATHにない場合は追加してください。MacでDMGから.appをコピーしただけの場合はCLI登録されないため、`installer/install-unix.sh`（Releaseの`install-unix.sh`）でインストールすると登録できます。開発ソースでは`npm link`で`pconsole`と従来の`portal-console`を登録できます。
+
+既存の同名コマンドが見つかった場合、配布版インストーラは`pconsole`の登録を省略して場所を表示します。アプリ自体は従来の起動方法で使えます。
+
+アプリ内の端末プロンプトでは、ハイフンなしの短縮コマンドが使えます（従来名も有効です）。
+
+| 短縮名 | 従来名 | 操作 |
+| --- | --- | --- |
+| `phelp` | `portal-help` | ヘルプ |
+| `ppreset 3x2` | `portal-preset 3x2` | レイアウト変更 |
+| `prestart` | `portal-restart` | 選択中のシェルを再起動。`--reset-cwd`も使用可能 |
+| `pmedia ./picture.jpg` | `portal-media ./picture.jpg` | メディアペインを開く。`--kind`／`--source`も使用可能 |
+| `pexit` | `portal-exit` | アプリ終了 |
+
+内部コマンドはPortal Console内で入力したときに処理されます。OSのグローバルコマンドとしては登録しません。ヘッドレス版では従来名と同じ機能制限があります。
+
 ## Modes
 
 ### original
@@ -362,6 +380,7 @@ GUI:
 | 右クリック | 選択範囲をコピー、選択がなければ貼り付け |
 | `F2` | original に切り替え |
 | `F3` | modern に切り替え |
+| `F4` | 選択中の端末／メディアペインを一時最大化。もう一度押すと元の配置に復元（別ペインの選択・レイアウト切り替えでも復元） |
 | `Ctrl+Shift+2` / `Ctrl+Shift+3` | original／modern に切り替え（Touch Bar対応） |
 | `Ctrl+Shift+N` / Macの `⌘N` | 独立した新しいアプリ窓を開く |
 | `F11` | フルスクリーン切り替え |

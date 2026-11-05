@@ -7,6 +7,7 @@
   "main": "src/main.js",
   "type": "commonjs",
   "bin": {
+    "pconsole": "scripts/launch.js",
     "portal-console": "scripts/launch.js"
   },
   "scripts": {

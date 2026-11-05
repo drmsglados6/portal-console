@@ -19,9 +19,23 @@
   System::Call 'kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", t "1")'
   nsExec::ExecToLog '"$INSTDIR\portal-console.exe" "$INSTDIR\resources\app.asar\src\install-record-cli.js" "$INSTDIR" windows-nsis "$APPDATA\portal-console\logs\install.log" "$PortalPreviousVersion"'
   Pop $0
+  nsExec::ExecToLog '"$INSTDIR\portal-console.exe" "$INSTDIR\resources\app.asar\src\register-cli.js" "$INSTDIR\portal-console.exe" "$INSTDIR"'
+  Pop $1
   System::Call 'kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", t "$R8")'
   ${If} $0 != 0
     MessageBox MB_ICONSTOP "Application files were installed, but recording the installation method failed. See the installation details."
     SetErrorLevel 1
   ${EndIf}
+  ${If} $1 != 0
+    MessageBox MB_ICONEXCLAMATION "The pconsole launcher could not be registered. See the installation details."
+    SetErrorLevel 1
+  ${EndIf}
+!macroend
+
+!macro customUnInstall
+  ReadEnvStr $R8 "ELECTRON_RUN_AS_NODE"
+  System::Call 'kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", t "1")'
+  nsExec::ExecToLog '"$INSTDIR\portal-console.exe" "$INSTDIR\resources\app.asar\src\register-cli.js" "$INSTDIR\portal-console.exe" "$INSTDIR" --remove'
+  Pop $0
+  System::Call 'kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", t "$R8")'
 !macroend

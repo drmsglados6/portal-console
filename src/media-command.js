@@ -30,7 +30,7 @@ function parseMediaCommand(line) {
   }
   if (quote) throw new Error('Close the quoted source path/URL.');
   if (started) words.push(word);
-  if (words.shift() !== 'portal-media') throw new Error('Invalid media command');
+  if (!['portal-media', 'pmedia'].includes(words.shift())) throw new Error('Invalid media command');
   const request = {};
   const fail = (message) => { const error = new Error(message); error.source = request.source; throw error; };
   while (words.length) {

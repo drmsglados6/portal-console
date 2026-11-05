@@ -194,7 +194,43 @@ async function run() {
       } }));
     };
     if (checkHelp) {
-      await typeKeys('portal-help');
+      const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true })).result?.result?.value;
+      const f4 = async (repeat = false) => {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'F4', code: 'F4', windowsVirtualKeyCode: 115, autoRepeat: repeat });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'F4', code: 'F4', windowsVirtualKeyCode: 115 });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      };
+      const initialLayout = await evaluate("document.querySelector('#screen').classList.contains('original') ? 'original' : 'modern'");
+      for (const layout of ['original', 'modern']) {
+        await evaluate(`document.querySelector('[data-layout=${layout}]').click()`);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await evaluate("document.querySelector('[data-pane=main] .xterm-helper-textarea').focus()");
+        const geometry = "(()=>{const r=document.querySelector('[data-pane=main]').getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()";
+        const before = await evaluate(geometry);
+        const writeStart = writes.length;
+        await f4();
+        const maximized = await evaluate("(()=>{const e=document.querySelector('[data-pane=main]');const r=e.getBoundingClientRect();return e.classList.contains('pane-maximized') && Math.abs(r.width-(innerWidth-16))<2 && Math.abs(r.height-(innerHeight-16))<2 && getComputedStyle(e).backgroundColor==='rgb(5, 3, 1)'})()");
+        if (!maximized) throw new Error(`F4 did not maximize the terminal in ${layout}`);
+        await f4(true);
+        if (!await evaluate("document.querySelector('[data-pane=main]').classList.contains('pane-maximized')")) throw new Error('Repeated F4 restored the pane');
+        await f4();
+        const after = await evaluate(geometry);
+        if (after.some((value, index) => Math.abs(value - before[index]) > 1)) throw new Error(`F4 did not restore ${layout} geometry: ${before} -> ${after}`);
+        if (/\x1b\[1[14]~|\x1bOS/.test(writes.slice(writeStart))) throw new Error('F4 leaked to the PTY');
+        await f4();
+        if (await evaluate("Boolean(document.querySelector('[data-pane=aux] .xterm-helper-textarea'))")) {
+          await evaluate("document.querySelector('[data-pane=aux] .xterm-helper-textarea').focus()");
+          if (await evaluate("Boolean(document.querySelector('.pane-maximized'))")) throw new Error('Selecting another pane did not restore the terminal');
+        }
+        await evaluate(`document.querySelector('[data-layout=${layout === 'original' ? 'modern' : 'original'}]').click()`);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        if (await evaluate("Boolean(document.querySelector('.pane-maximized'))")) throw new Error('Changing layout did not restore the terminal');
+      }
+      await evaluate(`document.querySelector('[data-layout=${initialLayout}]').click()`);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await evaluate(`document.querySelector('[data-pane=${sourceId}] .xterm-helper-textarea').focus()`);
+      console.log('F4 terminal maximize/restore, geometry, repeat and focus switching verified in both layouts');
+      await typeKeys('phelp');
       let help;
       for (let attempt = 0; attempt < 40; attempt += 1) {
         help = await send('Runtime.evaluate', { expression: `({open:document.querySelector('#help-dialog').open,sections:document.querySelectorAll('#help-content h3').length,text:document.querySelector('#help-content').textContent})`, returnByValue: true });
@@ -208,7 +244,7 @@ async function run() {
       const open = await send('Runtime.evaluate', { expression: `document.querySelector('#help-dialog').open` });
       if (!open.result?.result?.value) throw new Error('F1 help failed');
       await send('Runtime.evaluate', { expression: `document.querySelector('#help-close').click()` });
-      await typeKeys('portal-restart');
+      await typeKeys('prestart');
       let restarted;
       for (let attempt = 0; attempt < 60; attempt += 1) {
         restarted = await send('Runtime.evaluate', { expression: `document.querySelector('#mode-indicator').textContent` });
@@ -433,7 +469,7 @@ async function run() {
         await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers });
       };
       await evaluate("document.querySelector('[data-pane=aux] .xterm-helper-textarea').focus()");
-      await typeKeys('portal-media ./relative.svg');
+      await typeKeys('pmedia ./relative.svg');
       await wait(`document.querySelector('[data-pane=media1]')?.dataset.source===${JSON.stringify(path.join(auxMediaDirectory, 'relative.svg'))}`, 'relative source uses auxiliary cwd');
       await evaluate("[...document.querySelector('[data-pane=media1] .media-toolbar').querySelectorAll('button')].find(b=>b.textContent==='CLOSE').click()");
       await wait("!document.querySelector('[data-pane=media1]')", 'relative media close');
@@ -459,6 +495,10 @@ async function run() {
       await wait("document.querySelector('[data-pane=image]').classList.contains('pane-maximized')", 'pane maximization');
       await key('F11', 'F11');
       await evaluate("document.querySelector('[data-pane=pdf]').focus()");
+      await key('F4', 'F4');
+      await wait("document.querySelector('[data-pane=pdf]').classList.contains('pane-maximized')", 'PDF F4 maximization');
+      await key('F4', 'F4');
+      await wait("!document.querySelector('[data-pane=pdf]').classList.contains('pane-maximized')", 'PDF F4 restore');
       await key('ArrowDown', 'ArrowDown');
       await wait("document.querySelector('[data-pane=pdf]').dataset.page==='2'", 'PDF next page');
       await key('ArrowUp', 'ArrowUp');
@@ -474,6 +514,10 @@ async function run() {
       await wait("document.querySelector('.media-web').classList.contains('pane-maximized')", 'web guest F11 maximization');
       await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F11'})");
       await wait("!document.querySelector('.media-web').classList.contains('pane-maximized')", 'web guest restore');
+      await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F4'})");
+      await wait("document.querySelector('.media-web').classList.contains('pane-maximized')", 'web guest F4 maximization');
+      await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F4'})");
+      await wait("!document.querySelector('.media-web').classList.contains('pane-maximized')", 'web guest F4 restore');
       await evaluate("document.querySelector('.media-web webview').sendInputEvent({type:'keyDown',keyCode:'F1'})");
       await wait("document.querySelector('#help-dialog').open", 'help from embedded browser');
       await evaluate("document.querySelector('#help-close').click()");
@@ -574,7 +618,7 @@ async function run() {
       if (state.result?.result?.value !== 'main,third,fourth,sixth') throw new Error(`Unexpected survivor sessions: ${JSON.stringify(state)} writes=${writes}`);
       await send('Page.bringToFront');
       await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=${sourceId}] .xterm-helper-textarea').focus()` });
-      await typeKeys('portal-preset 3x2');
+      await typeKeys('ppreset 3x2');
       let count = 0;
       for (let attempt = 0; attempt < 40; attempt += 1) {
         const response = await send('Runtime.evaluate', { expression: "document.querySelectorAll('#screen .terminal-pane').length" });
@@ -679,7 +723,8 @@ async function run() {
       const refocused = await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=${sourceId}] .xterm-helper-textarea')?.focus(); document.activeElement?.closest('.pane')?.dataset.pane` });
       if (refocused.result?.result?.value !== sourceId) throw new Error(`Source pane lost focus: ${JSON.stringify(refocused)}`);
     }
-    if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkHelp || checkCrt || checkCwd) await typeKeys('portal-exit');
+    if (checkHelp) await typeKeys('pexit');
+    else if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkCrt || checkCwd) await typeKeys('portal-exit');
     else await enter('portal-exit');
     // The app may close before DevTools can acknowledge the Enter event.
     for (let attempt = 0; attempt < 80 && !exited; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 250));
@@ -687,7 +732,7 @@ async function run() {
       throw new Error(`GUI stayed open after portal-exit: ${errors} writes=${writes.slice(-3000)}`);
     }
     socket.close();
-    console.log(exited ? 'GUI exited after portal-exit' : 'GUI recognized portal-exit');
+    console.log(`GUI ${exited ? 'exited after' : 'recognized'} ${checkHelp ? 'pexit' : 'portal-exit'}`);
   } finally {
     if (!exited) {
       child.kill();

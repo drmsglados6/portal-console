@@ -140,9 +140,9 @@ function installIpc() {
       contents.setWindowOpenHandler(() => ({ action: 'deny' }));
       contents.on('before-input-event', (event, input) => {
         if (input.type !== 'keyDown') return;
-        if (input.key === 'F11') {
+        if (input.key === 'F11' || input.key === 'F4' && !input.control && !input.alt && !input.meta && !input.shift) {
           event.preventDefault();
-          if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('media:maximize', contents.id);
+          if (!input.isAutoRepeat && mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('media:maximize', contents.id);
         } else {
           let request;
           if (input.key === 'F1' || input.control && input.shift && input.code === 'KeyH') request = { action: 'help' };

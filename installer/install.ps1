@@ -98,6 +98,12 @@ try {
   Copy-Item -Path (Join-Path $payloadDirectory '*') -Destination $InstallDir -Recurse -Force
   Set-Content -LiteralPath (Join-Path $InstallDir 'portal-console.cmd') -Value '@"%~dp0portal-console.exe" %*' -Encoding ASCII
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination (Join-Path $InstallDir 'uninstall.ps1') -Force
+  $previousRunAsNode = $env:ELECTRON_RUN_AS_NODE
+  try {
+    $env:ELECTRON_RUN_AS_NODE = '1'
+    & (Join-Path $InstallDir 'portal-console.exe') (Join-Path $InstallDir 'resources\app.asar\src\register-cli.js') (Join-Path $InstallDir 'portal-console.exe') $InstallDir '--skip-environment'
+    if ($LASTEXITCODE -ne 0) { throw 'Could not register the pconsole launcher.' }
+  } finally { $env:ELECTRON_RUN_AS_NODE = $previousRunAsNode }
   $record = [ordered]@{
     schemaVersion = 1; appId = 'science.aperture.portalconsole'; method = 'windows-simple'; version = $buildInfo.version
     installedAt = (Get-Date).ToUniversalTime().ToString('o'); previousMethod = $previous.method; previousVersion = $previous.version
@@ -121,7 +127,7 @@ try {
   }
 
   Write-InstallLog 'Installation completed successfully.'
-  Write-Host "Run 'portal-console' from a new terminal, or launch '$InstallDir\portal-console.exe'."
+  Write-Host "Run 'pconsole' (or 'portal-console') from a new terminal, or launch '$InstallDir\portal-console.exe'."
 } catch {
   try { Write-InstallLog "INSTALLATION FAILED: $($_.Exception.Message)" } catch {}
   throw

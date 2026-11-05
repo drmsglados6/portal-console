@@ -28,7 +28,12 @@ try {
     fs.copyFileSync('installer/uninstall.ps1', path.join(target, 'uninstall.ps1'));
   }
   fs.mkdirSync(path.join(payload, 'resources'), { recursive: true });
-  fs.writeFileSync(path.join(payload, 'portal-console.exe'), 'updated-payload');
+  // A real bundled runtime is needed to exercise CLI registration. A directory
+  // named app.asar stands in for the archive for this installer-only fixture.
+  fs.copyFileSync(process.execPath, path.join(payload, 'portal-console.exe'));
+  const sources = path.join(payload, 'resources', 'app.asar', 'src');
+  fs.mkdirSync(sources, { recursive: true });
+  for (const name of ['register-cli.js', 'cli-alias.js']) fs.copyFileSync(path.join('src', name), path.join(sources, name));
   fs.writeFileSync(path.join(payload, 'resources', 'build-info.json'), JSON.stringify({ appId: build.appId, version }));
   const userConfig = path.join(temporary, 'user-config.json');
   fs.writeFileSync(userConfig, '{"preserved":true}');
@@ -37,7 +42,8 @@ try {
   assert.equal(record.method, 'windows-simple');
   assert.equal(record.previousMethod, 'windows-simple-legacy');
   assert.equal(record.version, version);
-  assert.equal(fs.readFileSync(path.join(target, 'portal-console.exe'), 'utf8'), 'updated-payload');
+  assert.deepEqual(fs.readFileSync(path.join(target, 'portal-console.exe')), fs.readFileSync(process.execPath));
+  assert.ok(fs.readFileSync(path.join(target, 'pconsole.cmd'), 'utf8').includes(`@"${path.join(target, 'portal-console.exe')}" %*`));
   assert.equal(fs.readFileSync(userConfig, 'utf8'), '{"preserved":true}');
   install(path.resolve('installer/install.ps1'), payload, target, log);
   const second = JSON.parse(fs.readFileSync(path.join(target, '.portal-console-install.json'), 'utf8').replace(/^\uFEFF/, ''));
