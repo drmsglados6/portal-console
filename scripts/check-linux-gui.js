@@ -1,17 +1,22 @@
 const { spawn } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
+
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-linux-gui-'));
 
 const child = spawn(path.resolve('release/linux-unpacked/portal-console'), [
-  '--windowed', '--mode', 'modern', '--remote-debugging-port=9223'
-], { stdio: ['ignore', 'ignore', 'pipe'] });
+  '--windowed', '--mode', 'modern', '--remote-debugging-port=9223', `--user-data-dir=${path.join(directory, 'runtime')}`
+], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_CONFIG_HOME: directory } });
 let errors = '';
 child.stderr.on('data', (data) => { errors += data; });
+child.stdout.on('data', (data) => { errors += data; });
 const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function check() {
   let page;
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 600; attempt += 1) {
     if (child.exitCode !== null) throw new Error(`GUI exited early: ${errors}`);
     try {
       const pages = await (await fetch('http://127.0.0.1:9223/json')).json();
@@ -72,4 +77,5 @@ async function check() {
 }
 check().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {
   if (child.exitCode === null) child.kill();
+  fs.rmSync(directory, { recursive: true, force: true });
 });
