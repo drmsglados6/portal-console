@@ -58,6 +58,24 @@ try {
   assert.equal(fs.existsSync(target), false);
   assert.equal(fs.existsSync(log), true);
   assert.equal(fs.readFileSync(userConfig, 'utf8'), '{"preserved":true}');
+  if (process.argv.includes('--packaged')) {
+    const packagedTarget = path.join(temporary, 'packaged app');
+    install(path.resolve('installer/install.ps1'), path.resolve('release/win-unpacked'), packagedTarget, log);
+    assert.ok(fs.existsSync(path.join(packagedTarget, 'pconsole.cmd')));
+    const work = path.join(temporary, 'worker'); fs.mkdirSync(work);
+    const archive = path.resolve('release/portal-console-simple-installer-win-x64.zip');
+    const digest = require('node:crypto').createHash('sha256').update(fs.readFileSync(archive)).digest('hex');
+    const planFile = path.join(work, 'plan.json');
+    fs.writeFileSync(planFile, JSON.stringify({ method: 'windows-simple', parentPid: 0, file: archive, digest,
+      target: packagedTarget, work, logFile: path.join(log, 'update.log'), version }));
+    const updated = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('src/update-runner.ps1'), '-PlanFile', planFile, '-NoRestart', '-NonInteractive', '-SkipEnvironment'], { encoding: 'utf8', timeout: 120000 });
+    assert.equal(updated.status, 0, `${updated.stdout}\n${updated.stderr}\n${fs.existsSync(path.join(log, 'update.log')) ? fs.readFileSync(path.join(log, 'update.log'), 'utf8') : ''}`);
+    const upgraded = JSON.parse(fs.readFileSync(path.join(packagedTarget, '.portal-console-install.json'), 'utf8').replace(/^\uFEFF/, ''));
+    assert.equal(upgraded.method, 'windows-simple'); assert.equal(upgraded.previousVersion, version);
+    const uninstalled = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('installer/uninstall.ps1'), '-InstallDir', packagedTarget, '-LogDir', log, '-SkipEnvironment'], { encoding: 'utf8' });
+    assert.equal(uninstalled.status, 0, uninstalled.stderr);
+    console.log('Real packaged Electron runtime and simple-ZIP update worker verified without changing user PATH');
+  }
   console.log('Legacy release-0929 layout and recorded Windows simple-installer updates verified');
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });

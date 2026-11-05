@@ -51,6 +51,19 @@ def check(arguments, check_updates=False):
         def prefix(key):
             os.write(master, b'\x02' + key)  # Deliberately coalesced in one write.
 
+        def wait_exit():
+            # Keep draining the TTY while Node flushes its final restoration
+            # output; waiting without reading can fill the PTY buffer.
+            nonlocal output
+            deadline = time.monotonic() + 10
+            while child.poll() is None and time.monotonic() < deadline:
+                if select.select([master], [], [], 0.1)[0]:
+                    try:
+                        output += os.read(master, 65536)
+                    except OSError:
+                        break
+            child.wait(timeout=max(0.1, deadline - time.monotonic()))
+
         def shell_pid(label):
             os.write(master, f"printf 'PID_{label}=%s\\n' $$\r".encode())
             return int(wait_for(f'PID_{label}=(\\d+)'.encode()).group(1))
@@ -71,7 +84,7 @@ def check(arguments, check_updates=False):
             os.write(master, b'\x1b')
             assert shell_pid('after_update_error') == main_pid
             prefix(b'q')
-            child.wait(timeout=10)
+            wait_exit()
             assert child.returncode == 0
             print('Headless update aliases, check-only and recoverable offline error verified')
             return
@@ -114,7 +127,7 @@ def check(arguments, check_updates=False):
         os.write(master, b'q')
         assert shell_pid('aux_after_command_help') == auxiliary_pid
         os.write(master, b'pexit\r')
-        child.wait(timeout=10)
+        wait_exit()
         assert child.returncode == 0, output[-16000:].decode(errors='replace')
         print(f'Headless next/previous, wrap, isolated restart, paged help and exit verified: {arguments or "automatic fallback"}')
     finally:

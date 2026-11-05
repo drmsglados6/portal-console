@@ -26,11 +26,13 @@ try {
   Invoke-WebRequest -UseBasicParsing -Uri $expectedUrl -OutFile $script
   if ((Get-Item -LiteralPath $script).Length -ne $asset[0].size -or (Get-FileHash -LiteralPath $script -Algorithm SHA256).Hash.ToLowerInvariant() -ne $asset[0].digest.Substring(7)) { throw 'Updater SHA-256/size verification failed.' }
   $env:ELECTRON_RUN_AS_NODE = '1'
-  $arguments = @($script)
-  if ($CheckOnly) { $arguments += '--check' }
-  if ($Yes) { $arguments += '--yes' }
-  & $executable @arguments
-  if ($LASTEXITCODE -ne 0) { throw "Updater exited with $LASTEXITCODE." }
+  # Electron is a Windows GUI executable even in Node mode: & alone may return
+  # before it exits, leaving LASTEXITCODE unset and deleting its script too soon.
+  $argumentLine = '"' + $script + '"'
+  if ($CheckOnly) { $argumentLine += ' --check' }
+  if ($Yes) { $argumentLine += ' --yes' }
+  $process = Start-Process -FilePath $executable -ArgumentList $argumentLine -NoNewWindow -Wait -PassThru
+  if ($process.ExitCode -ne 0) { throw "Updater exited with $($process.ExitCode)." }
 } finally {
   $env:ELECTRON_RUN_AS_NODE = $savedRunAsNode
   if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force }

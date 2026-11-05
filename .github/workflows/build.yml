@@ -126,6 +126,7 @@ jobs:
         run: |
           ./scripts/package-installer.ps1 -ReleaseDirectory release
           Compress-Archive -LiteralPath release/installer -DestinationPath release/portal-console-simple-installer-win-x64.zip
+          node scripts/check-windows-update.js --packaged
       - name: Upload packages
         uses: actions/upload-artifact@v7
         with:

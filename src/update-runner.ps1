@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$PlanFile, [switch]$NonInteractive, [switch]$NoRestart)
+param([Parameter(Mandatory=$true)][string]$PlanFile, [switch]$NonInteractive, [switch]$NoRestart, [switch]$SkipEnvironment)
 $ErrorActionPreference = 'Stop'
 # A caller running pwsh can otherwise make Windows PowerShell load pwsh modules.
 $env:PSModulePath = (Join-Path $PSHOME 'Modules') + ';' + $env:PSModulePath
@@ -24,7 +24,7 @@ try {
       Expand-Archive -LiteralPath $plan.file -DestinationPath $unpacked
       $installer = Join-Path $unpacked 'installer\install.ps1'
       $source = Join-Path $unpacked 'installer\Portal-Console-win-x64.zip'
-      & $installer -Source $source -InstallDir $plan.target -LogDir (Split-Path -Parent $plan.logFile) *>> $plan.logFile
+      & $installer -Source $source -InstallDir $plan.target -LogDir (Split-Path -Parent $plan.logFile) -SkipEnvironment:$SkipEnvironment *>> $plan.logFile
       if (!$NoRestart) { Start-Process -FilePath (Join-Path $plan.target 'portal-console.exe') }
     }
     'windows-portable' {
@@ -33,7 +33,7 @@ try {
       try {
         # The portable launcher can outlive its Electron child briefly.
         for ($attempt = 0; ; $attempt++) {
-          try { [IO.File]::Replace($stage, $plan.target, $null); break }
+          try { [IO.File]::Replace($stage, $plan.target, [NullString]::Value); break }
           catch { if ($attempt -ge 39) { throw }; Start-Sleep -Milliseconds 250 }
         }
       }

@@ -163,3 +163,17 @@ test('Windows worker rejects a tampered installer before changing the installati
   assert.match(fs.readFileSync(plan.logFile, 'utf8'), /SHA-256/);
   assert.equal(fs.readFileSync(path.join(target, 'preserved'), 'utf8'), 'old app');
 });
+
+test('Windows portable worker replaces the file atomically without launching it in verification mode', { skip: process.platform !== 'win32' }, async (t) => {
+  const root = temporary(t), target = path.join(root, 'portable.exe'), bytes = Buffer.from('new portable');
+  fs.writeFileSync(target, 'old portable');
+  const context = { platform: 'win32', arch: 'x64', method: 'windows-portable', target };
+  const plan = await updater.prepareUpdate(release('portal-console-0.1.9-win-x64-portable.exe', bytes), context, {
+    temporaryRoot: root, parentPid: 0, logFile: path.join(root, 'update.log'), open: async () => Readable.from([bytes])
+  });
+  const worker = updater.workerCommand(plan);
+  const result = spawnSync(worker.command, [...worker.args, '-NonInteractive', '-NoRestart'], { encoding: 'utf8', timeout: 20000 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(fs.readFileSync(target), bytes);
+  assert.equal(fs.existsSync(plan.work), false);
+});

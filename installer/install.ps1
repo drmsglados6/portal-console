@@ -40,6 +40,23 @@ function Write-InstallLog([string]$Message) {
   Write-Host $Message
 }
 
+function Write-InstallText([string]$File, [string]$Value) {
+  $stage = "$File.$([guid]::NewGuid()).tmp"
+  try {
+    [IO.File]::WriteAllText($stage, $Value, [Text.UTF8Encoding]::new($false))
+    for ($attempt = 1; $attempt -le 20; $attempt++) {
+      try {
+        if ([IO.File]::Exists($File)) { [IO.File]::Replace($stage, $File, [NullString]::Value) }
+        else { [IO.File]::Move($stage, $File) }
+        return
+      } catch [System.IO.IOException] {
+        if ($attempt -eq 20) { throw }
+        Start-Sleep -Milliseconds 200
+      }
+    }
+  } finally { if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue } }
+}
+
 try {
   New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
   Write-InstallLog 'Portal Console installation started.'
@@ -96,19 +113,22 @@ try {
 
   New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
   Copy-Item -Path (Join-Path $payloadDirectory '*') -Destination $InstallDir -Recurse -Force
-  Set-Content -LiteralPath (Join-Path $InstallDir 'portal-console.cmd') -Value '@"%~dp0portal-console.exe" %*' -Encoding ASCII
+  Write-InstallText (Join-Path $InstallDir 'portal-console.cmd') "@`"%~dp0portal-console.exe`" %*`r`n"
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination (Join-Path $InstallDir 'uninstall.ps1') -Force
   $previousRunAsNode = $env:ELECTRON_RUN_AS_NODE
   try {
     $env:ELECTRON_RUN_AS_NODE = '1'
-    & (Join-Path $InstallDir 'portal-console.exe') (Join-Path $InstallDir 'resources\app.asar\src\register-cli.js') (Join-Path $InstallDir 'portal-console.exe') $InstallDir '--skip-environment'
-    if ($LASTEXITCODE -ne 0) { throw 'Could not register the pconsole launcher.' }
+    $runtime = Join-Path $InstallDir 'portal-console.exe'
+    $register = Join-Path $InstallDir 'resources\app.asar\src\register-cli.js'
+    $arguments = '"' + $register + '" "' + $runtime + '" "' + $InstallDir.TrimEnd('\') + '" --skip-environment'
+    $registration = Start-Process -FilePath $runtime -ArgumentList $arguments -NoNewWindow -Wait -PassThru
+    if ($registration.ExitCode -ne 0) { throw 'Could not register the pconsole launcher.' }
   } finally { $env:ELECTRON_RUN_AS_NODE = $previousRunAsNode }
   $record = [ordered]@{
     schemaVersion = 1; appId = 'science.aperture.portalconsole'; method = 'windows-simple'; version = $buildInfo.version
     installedAt = (Get-Date).ToUniversalTime().ToString('o'); previousMethod = $previous.method; previousVersion = $previous.version
   }
-  $record | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $InstallDir '.portal-console-install.json') -Encoding UTF8
+  Write-InstallText (Join-Path $InstallDir '.portal-console-install.json') (($record | ConvertTo-Json) + "`r`n")
   Write-InstallLog "Installation record written: windows-simple $($buildInfo.version)"
   Write-InstallLog "Files installed to $InstallDir"
 
