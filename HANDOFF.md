@@ -2,13 +2,16 @@
 
 ## Current State
 
-- v0.1.8 work: F4 temporarily maximizes/restores the selected pane; `pconsole`, short internal commands and `pupdate`/`portal-update` are implemented. Update commands use public GitHub Releases without gh/login, verify SHA-256/size, preserve installation method, then hand off to an independent worker. One-time `update-once.ps1`/`.sh` scripts bootstrap old releases to 0.1.8 using their bundled runtime.
+- Released v0.1.8: https://github.com/drmsglados6/portal-console/releases/tag/v0.1.8 . All 18 assets are uploaded. Release notes: `RELEASE_NOTES_0_1_8.md`.
+- F4 temporarily maximizes/restores the selected pane; `pconsole`, short internal commands and `pupdate`/`portal-update` are shipped. Update commands use public GitHub Releases without gh/login, verify SHA-256/size, preserve installation method, then hand off to an independent worker. One-time `update-once.ps1`/`.sh` scripts bootstrap old releases to 0.1.8 using their bundled runtime.
 - CRT is temporarily suspended in v0.1.8, even for saved enabled=true. Source/preferences remain; controls and decorative blur are disabled. Do not re-enable by default. See `NATIVE_REWRITE_0_2_0.md` for the requested Rust/native rewrite preparation; no Rust implementation has begun.
 - Latest migration direction: introduce Rust functions behind the Electron frontend during subsequent 0.1.x releases, then reuse that core for a native frontend. The sidecar/Node-API bridge choice is still open; see section 7 of the rewrite plan.
-- Agent entry point: `AGENTS.md`. User requirements/history/corrected assumptions: `DEVELOPMENT_CONTEXT.md`. CI and Release verification status must be updated after this release is actually published.
+- Verification: tagged release CI https://github.com/drmsglados6/portal-console/actions/runs/41985892462 passed after one Linux TTY exit-wait rerun. Corrective commit `8dbb27e` passed all OS jobs: https://github.com/drmsglados6/portal-console/actions/runs/41989686002 . Windows packages and migration helper assets were refreshed from that CI after finding GUI-executable wait/portable-replace issues during publication checks. The existing public tag was not moved; use the corrective commit to reproduce those revised assets.
+- A real installed 0.1.6 runtime successfully ran the released migration helper in check-only mode, downloaded/SHA-256-verified its bootstrap, and detected windows-nsis plus the existing install location. This was not an installation or a running-session shutdown. Real packaged simple-ZIP worker, NSIS worker and portable atomic replacement are now covered by verification.
+- Agent entry point: `AGENTS.md`. User requirements/history/corrected assumptions: `DEVELOPMENT_CONTEXT.md`. Mac actual-machine scroll/Gatekeeper checks remain pending.
 - CLI aliases are registered by Windows NSIS/simple installers, Linux deb hooks, and the Unix helper for AppImage/Mac. The Unix helper uses `~/.local/bin`; copying a Mac app from DMG alone does not register a CLI. Installer registration preserves foreign commands named `pconsole`. Windows NSIS tracks whether it added the user PATH entry and removes only its own entry on uninstall.
 
-- Source version: `0.1.8` (latest tagged release: `0.1.7`; 0.1.8 release in progress)
+- Source version: `0.1.8` (latest tagged release: `0.1.8`; revised Windows/helper assets from `8dbb27e`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`

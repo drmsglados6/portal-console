@@ -36,7 +36,7 @@ Portal Console is a cross-platform terminal application. The current implementat
 | Media / PDF / embedded web | `src/media-command.js`, `media.js`, `src/renderer/media-view.js` |
 | Updates and one-time migration | `src/updater.js`, `update-runner.*`, `update-once.js`, `installer/update-once.*` |
 | Install metadata / CLI registration | `src/installation.js`, `install-record-cli.js`, `cli-alias.js`, `register-cli.js` |
-| Build, packaging, CI | `scripts/build.js`, `after-pack.js`, `installer/`, `.github/workflows/build.yml` |
+| Build, packaging, CI | `scripts/build.js`, `after-pack.js`, `after-all-artifact-build.js`, `installer/`, `.github/workflows/build.yml` |
 
 ## Verification
 

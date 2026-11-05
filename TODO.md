@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] v0.1.8を全OS CIで検証して配布する（pupdate／portal-update、一時更新スクリプト、F4、短縮名、CRT停止）。
+- [x] v0.1.8を全OS CIで検証して配布する（pupdate／portal-update、一時更新スクリプト、F4、短縮名、CRT停止）。公開後のWindows待機／portable置換修正もCI成果物へ反映し、旧版ランタイムのcheck-onlyを確認。
 - [x] CRT再現を一時停止し、保存済みenabled=trueも描画せず実装・設定を保持する。
 - [x] AGENTS.md・DEVELOPMENT_CONTEXT.mdと0.2.0ネイティブ化要件を整備する。
 - [ ] 次の0.1.xでRust共通coreの小規模試作を行い、Electronからの呼び出し方式を選ぶ。JS互換fixtureと各OSの配布物で検証する。
