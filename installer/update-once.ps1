@@ -18,9 +18,9 @@ $work = Join-Path ([IO.Path]::GetTempPath()) "portal-update-bootstrap-$([guid]::
 $savedRunAsNode = $env:ELECTRON_RUN_AS_NODE
 try {
   New-Item -ItemType Directory -Path $work | Out-Null
-  $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/drmsglados6/portal-console/releases/tags/v0.1.8' -Headers @{ 'User-Agent' = 'Portal-Console-Updater' }
+  $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/drmsglados6/portal-console/releases/tags/v0.1.8-1' -Headers @{ 'User-Agent' = 'Portal-Console-Updater' }
   $asset = @($release.assets | Where-Object { $_.name -eq 'update-once.cjs' })
-  $expectedUrl = 'https://github.com/drmsglados6/portal-console/releases/download/v0.1.8/update-once.cjs'
+  $expectedUrl = 'https://github.com/drmsglados6/portal-console/releases/download/v0.1.8-1/update-once.cjs'
   if ($release.draft -or $release.prerelease -or $asset.Count -ne 1 -or $asset[0].browser_download_url -ne $expectedUrl -or $asset[0].digest -notmatch '^sha256:[a-f0-9]{64}$' -or $asset[0].size -le 0 -or $asset[0].size -gt 4194304) { throw 'Invalid updater release metadata.' }
   $script = Join-Path $work 'update-once.cjs'
   Invoke-WebRequest -UseBasicParsing -Uri $expectedUrl -OutFile $script

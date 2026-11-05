@@ -2,6 +2,10 @@
 
 ## Current State
 
+- Preparing v0.1.8-1 as requested (not yet released): normal-screen local drag selection works even when mouse tracking is still active, with TUI/application/Alt handling retained; legacy idle reports are filtered as well as SGR. Image clipboard paste forwards Ctrl+V to the local image-aware TUI instead of losing the action through readText-only paste. These changes are not in v0.1.8 assets.
+- Revision updates use project ordering `0.1.8 < 0.1.8-1 < 0.1.8-2 < 0.1.9` and discover releases through the list endpoint. Numeric revisions are published without the prerelease flag, but with latest=false to keep old 0.1.8 clients' three-part parser working. Migrate older versions with the revision's update-once script; do not advertise old 0.1.8 pupdate as revision-aware.
+- Latest user report was from the currently running Windows installation, whose build-info is **0.1.6**, not a verified 0.1.8 regression. User confirmed the affected OpenCode runs locally on Windows. Do not stop/update that installation as a diagnostic shortcut.
+
 - Released v0.1.8: https://github.com/drmsglados6/portal-console/releases/tag/v0.1.8 . All 18 assets are uploaded. Release notes: `RELEASE_NOTES_0_1_8.md`.
 - F4 temporarily maximizes/restores the selected pane; `pconsole`, short internal commands and `pupdate`/`portal-update` are shipped. Update commands use public GitHub Releases without gh/login, verify SHA-256/size, preserve installation method, then hand off to an independent worker. One-time `update-once.ps1`/`.sh` scripts bootstrap old releases to 0.1.8 using their bundled runtime.
 - CRT is temporarily suspended in v0.1.8, even for saved enabled=true. Source/preferences remain; controls and decorative blur are disabled. Do not re-enable by default. See `NATIVE_REWRITE_0_2_0.md` for the requested Rust/native rewrite preparation; no Rust implementation has begun.
@@ -11,7 +15,7 @@
 - Agent entry point: `AGENTS.md`. User requirements/history/corrected assumptions: `DEVELOPMENT_CONTEXT.md`. Mac actual-machine scroll/Gatekeeper checks remain pending.
 - CLI aliases are registered by Windows NSIS/simple installers, Linux deb hooks, and the Unix helper for AppImage/Mac. The Unix helper uses `~/.local/bin`; copying a Mac app from DMG alone does not register a CLI. Installer registration preserves foreign commands named `pconsole`. Windows NSIS tracks whether it added the user PATH entry and removes only its own entry on uninstall.
 
-- Source version: `0.1.8` (latest tagged release: `0.1.8`; revised Windows/helper assets from `8dbb27e`)
+- Source version: `0.1.8-1` (latest tagged release: `0.1.8`; revised Windows/helper assets from `8dbb27e`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`

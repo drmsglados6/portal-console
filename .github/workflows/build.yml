@@ -77,6 +77,12 @@ jobs:
       - name: Verify update command checks and recoverable errors
         if: runner.os != 'Linux'
         run: node scripts/check-gui-exit.js --update
+      - name: Verify terminal image and text paste
+        if: runner.os != 'Linux'
+        run: node scripts/check-gui-exit.js --clipboard
+      - name: Verify terminal image and text paste on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/check-gui-exit.js --clipboard
       - name: Verify update command checks on Linux
         if: runner.os == 'Linux'
         run: xvfb-run -a node scripts/check-gui-exit.js --update
@@ -164,7 +170,13 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"
+            if [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
+              # Old 0.1.8 clients understand only x.y.z at /releases/latest.
+              # Revision-aware clients read the release list instead.
+              gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG" --prerelease=false --latest=false
+            else
+              gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"
+            fi
           fi
           gh release upload "$RELEASE_TAG" packages/* --clobber
 

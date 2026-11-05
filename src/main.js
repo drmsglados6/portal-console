@@ -279,6 +279,10 @@ function installIpc() {
     return audio ? audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) : null;
   });
   ipcMain.handle('clipboard:read', () => clipboard.readText());
+  ipcMain.handle('clipboard:read-content', (event) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid clipboard request');
+    return { text: clipboard.readText(), hasImage: !clipboard.readImage().isEmpty() };
+  });
   ipcMain.handle('clipboard:write', (_event, value) => {
     if (typeof value !== 'string' || value.length > 10 * 1024 * 1024) throw new Error('Invalid clipboard text');
     clipboard.writeText(value);

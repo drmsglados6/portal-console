@@ -27,15 +27,41 @@ test('stable update checks compare numeric versions and never downgrade', async 
   assert.equal(updater.newerVersion('0.2.0', '0.1.99'), true);
   assert.equal(updater.newerVersion('0.1.8', '0.1.8'), false);
   assert.equal(updater.newerVersion('0.1.7', '0.1.8'), false);
-  for (const version of ['0.1.9-beta', '../0.1.9', '01.1.9', '99999999999999999.1.9']) assert.throws(() => updater.newerVersion(version, '0.1.8'));
+  assert.equal(updater.newerVersion('0.1.8-1', '0.1.8'), true);
+  assert.equal(updater.newerVersion('0.1.8-10', '0.1.8-2'), true);
+  assert.equal(updater.newerVersion('0.1.9', '0.1.8-99'), true);
+  assert.equal(updater.newerVersion('0.1.8', '0.1.8-1'), false);
+  assert.equal(updater.newerVersion('0.1.8-1', '0.1.8-1'), false);
+  for (const version of ['0.1.9-beta', '../0.1.9', '01.1.9', '0.1.8-0', '0.1.8-01', '99999999999999999.1.9']) assert.throws(() => updater.newerVersion(version, '0.1.8'));
   const fixture = release();
   const result = await updater.checkForUpdate('0.1.8', { open: async (url) => {
-    assert.equal(url, 'https://api.github.com/repos/drmsglados6/portal-console/releases/latest');
-    return Readable.from([JSON.stringify(fixture)]);
+    assert.equal(url, 'https://api.github.com/repos/drmsglados6/portal-console/releases?per_page=100');
+    return Readable.from([JSON.stringify([fixture])]);
   } });
   assert.equal(result.available, true);
-  await assert.rejects(updater.checkForUpdate('0.1.8', { open: async () => Readable.from([JSON.stringify({ ...fixture, prerelease: true })]) }), /stable/);
+  await assert.rejects(updater.checkForUpdate('0.1.8', { open: async () => Readable.from([JSON.stringify([{ ...fixture, prerelease: true }])]) }), /stable/);
   await assert.rejects(updater.checkForUpdate('0.1.8', { open: async () => { throw new Error('offline'); } }), /offline/);
+});
+
+test('release discovery finds numeric revisions without GitHub latest and skips beta/draft releases', async () => {
+  const fixture = release();
+  const entries = [
+    { ...fixture, tag_name: 'v0.1.8-2' }, { ...fixture, tag_name: 'v0.1.8' },
+    { ...fixture, tag_name: 'v0.1.8-10' }, { ...fixture, tag_name: 'v0.1.9', prerelease: true },
+    { ...fixture, tag_name: 'v0.2.0', draft: true }, { ...fixture, tag_name: 'v0.1.9-beta' }
+  ];
+  const found = await updater.checkForUpdate('0.1.8-1', { open: async () => Readable.from([JSON.stringify(entries)]) });
+  assert.equal(found.available, true);
+  assert.equal(found.version, '0.1.8-10');
+  const pinned = await updater.checkForUpdate('0.1.8', { tag: '0.1.8-2', open: async (url) => {
+    assert.ok(url.endsWith('/releases/tags/v0.1.8-2'));
+    return Readable.from([JSON.stringify(entries[0])]);
+  } });
+  assert.equal(pinned.version, '0.1.8-2');
+  await assert.rejects(updater.checkForUpdate('0.1.8', { tag: '0.1.8-1', open: async () => Readable.from([JSON.stringify(fixture)]) }), /matching stable/);
+  const revision = { ...fixture, tag_name: 'v0.1.8-1', assets: fixture.assets.map((asset) => ({ ...asset,
+    name: asset.name.replace('0.1.9', '0.1.8-1'), browser_download_url: asset.browser_download_url.replaceAll('0.1.9', '0.1.8-1') })) };
+  assert.equal(updater.releaseAsset(revision, { platform: 'linux', arch: 'x64', method: 'linux-appimage' }).name, 'portal-console-0.1.8-1-linux-x86_64.AppImage');
 });
 
 test('each installation method selects only its matching official asset', () => {

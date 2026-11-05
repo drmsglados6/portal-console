@@ -34,6 +34,7 @@ async function run() {
   const checkCrt = process.argv.includes('--crt');
   const checkHelp = process.argv.includes('--help');
   const checkUpdate = process.argv.includes('--update');
+  const checkClipboard = process.argv.includes('--clipboard');
   const checkCwd = process.argv.includes('--cwd');
   const packaged = process.argv.includes('--packaged');
   const sourceId = process.argv.includes('--third') ? 'third' : 'main';
@@ -43,7 +44,7 @@ async function run() {
   const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-gui-check-'));
   let mainMediaDirectory = path.join(configHome, 'main directory');
   let auxMediaDirectory = path.join(configHome, 'aux directory');
-  if (checkWheel || checkUpdate) {
+  if (checkWheel || checkUpdate || checkClipboard) {
     const mock = path.join(configHome, 'mouse-server.js');
     fs.writeFileSync(mock, "process.stdin.setRawMode(true);process.stdin.resume();process.stdin.on('data',()=>{});process.stdout.write('MOCK_NATIVE_READY\\r\\n');\n");
     const folder = path.join(configHome, 'portal-console');
@@ -128,10 +129,12 @@ async function run() {
   fs.writeFileSync(path.join(configHome, 'package.json'), JSON.stringify({ name: 'portal-gui-exit-check', main: 'main.js' }));
   let mockWindowLaunch = checkNewWindow ? "const cp=require('node:child_process'),realSpawn=cp.spawn; cp.spawn=function(file,args,options){if(file===process.execPath&&options?.detached){process.stdout.write('NEW_WINDOW_SPAWN '+JSON.stringify(args)+'\\n');return {pid:12345,on(){return this},unref(){}};}return realSpawn.apply(this,arguments)};" : '';
   if (checkUpdate) mockWindowLaunch += `let updateChecks=0;require(${JSON.stringify(path.join(__dirname, '..', 'src', 'updater.js'))}).checkForUpdate=async()=>{if(updateChecks++)throw new Error('TEST_OFFLINE');return {available:false,version:'0.1.8'}};`;
-  if (checkWheel || checkUpdate) mockWindowLaunch += `require(${JSON.stringify(require.resolve('node-pty'))}).spawn=()=>({pid:0,onData(callback){this.output=callback;queueMicrotask(()=>callback('MOCK_NATIVE_READY\\r\\n'));return{dispose(){}}},onExit(){return{dispose(){}}},write(command){const data=command==='PORTAL_TEST_INITIAL'?'\\x1b[?1003h\\x1b[?1006h'+Array.from({length:120},(_,i)=>'LINE_'+i+'\\r\\n').join(''):command==='PORTAL_TEST_ALT'?'\\x1b[?1049h\\x1b[?1003h\\x1b[?1006hALT_READY':command==='PORTAL_TEST_NORMAL_MOUSE'?'\\x1b[?1003h\\x1b[?1006h':command==='PORTAL_TEST_NORMAL'?'\\x1b[?1049l':'';if(data)this.output(data)},resize(){},pause(){},resume(){},kill(){process.stdout.write('TEST_PTY_KILL\\n')}});`;
+  if (checkWheel || checkUpdate || checkClipboard) mockWindowLaunch += `require(${JSON.stringify(require.resolve('node-pty'))}).spawn=()=>({pid:0,onData(callback){this.output=callback;queueMicrotask(()=>callback('MOCK_NATIVE_READY\\r\\n'));return{dispose(){}}},onExit(){return{dispose(){}}},write(command){const data=command==='PORTAL_TEST_INITIAL'?'\\x1b[?1003h\\x1b[?1006h'+Array.from({length:120},(_,i)=>'LINE_'+i+'\\r\\n').join(''):command==='PORTAL_TEST_ALT'?'\\x1b[?1049h\\x1b[?1003h\\x1b[?1006hALT_READY':command==='PORTAL_TEST_NORMAL_MOUSE'?'\\x1b[?1003h\\x1b[?1006h':command==='PORTAL_TEST_NORMAL'?'\\x1b[?1049l':'';if(data)this.output(data)},resize(){},pause(){},resume(){},kill(){process.stdout.write('TEST_PTY_KILL\\n')}});`;
+  if (checkWheel) mockWindowLaunch += `require('electron').clipboard.writeText=(text)=>process.stdout.write('CLIPBOARD_COPY '+JSON.stringify(text)+'\\n');`;
+  if (checkClipboard) mockWindowLaunch += `const clipboard=require('electron').clipboard;const clipCases=[{text:'IMAGE_TEXT_MUST_NOT_PASTE',image:true},{text:'PASTE_TEXT_ONLY',image:false},{text:'',image:false},{text:'',image:true},{text:'',image:true}];let clipIndex=0;clipboard.readText=()=>clipCases[clipIndex]?.text||'';clipboard.readImage=()=>{const item=clipCases[clipIndex++];process.stdout.write('CLIPBOARD_READ '+clipIndex+'\\n');return{isEmpty:()=>!item?.image}};`;
   fs.writeFileSync(path.join(configHome, 'main.js'), `${mockWindowLaunch} const {ipcMain,BrowserWindow}=require('electron'); ipcMain.on('terminal:write',(_event,value)=>process.stdout.write('WRITE '+JSON.stringify(value)+'\\n')); ipcMain.on('app:quit',()=>process.stdout.write('QUIT\\n')); require(${JSON.stringify(path.join(__dirname, '..', 'src', 'main.js'))});\n`);
   if (checkMedia) fs.appendFileSync(path.join(configHome, 'main.js'), "require('electron').app.whenReady().then(()=>{ipcMain.removeHandler('clipboard:read');ipcMain.handle('clipboard:read',()=> 'https://example.org/');BrowserWindow.getAllWindows()[0]?.webContents.setBackgroundThrottling(false);});\n");
-  const child = spawn(electron, [...(packaged ? ['--config', path.join(configHome, 'portal-console', 'config.json'), `--user-data-dir=${path.join(configHome, 'runtime')}`, '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] : [configHome]), '--windowed', ...(checkPreset ? ['--preset', '3x2'] : []), `--remote-debugging-port=${port}`], {
+  const child = spawn(electron, [...(packaged ? ['--config', path.join(configHome, 'portal-console', 'config.json'), '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] : [configHome]), `--user-data-dir=${path.join(configHome, 'runtime')}`, '--windowed', ...(checkPreset ? ['--preset', '3x2'] : []), `--remote-debugging-port=${port}`], {
     stdio: 'pipe', env: { ...process.env, APPDATA: configHome, XDG_CONFIG_HOME: configHome, PORTAL_CONSOLE_LOG_DIR: path.join(configHome, 'logs') }
   });
   let errors = '';
@@ -374,6 +377,28 @@ async function run() {
       console.log('GUI layout buttons and Ctrl+Shift+2/3 switched modes');
       await send('Runtime.evaluate', { expression: "document.querySelector('[data-pane=main] .xterm-helper-textarea').focus()" });
     }
+    if (checkClipboard) {
+      const paste = async (key, code, modifiers, read) => {
+        const before = writes.length;
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers });
+        for (let attempt = 0; attempt < 50 && !writes.slice(before).includes(`CLIPBOARD_READ ${read}`); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        if (!writes.slice(before).includes(`CLIPBOARD_READ ${read}`)) throw new Error('Paste did not read clipboard content');
+        return writes.slice(before);
+      };
+      const image = await paste('v', 'KeyV', 2, 1);
+      if (!image.includes('\\u0016') || image.includes('IMAGE_TEXT_MUST_NOT_PASTE')) throw new Error(`Image paste did not send raw Ctrl+V: ${image}`);
+      const text = await paste('V', 'KeyV', 10, 2);
+      if (!text.includes('PASTE_TEXT_ONLY') || text.includes('\\u0016')) throw new Error(`Text paste regressed: ${text}`);
+      const empty = await paste('v', 'KeyV', 2, 3);
+      if (/WRITE /.test(empty)) throw new Error(`Empty clipboard produced terminal input: ${empty}`);
+      const shifted = await paste('Insert', 'Insert', 8, 4);
+      if (!shifted.includes('\\u0016')) throw new Error('Shift+Insert lost image paste');
+      const mac = await paste('v', 'KeyV', 4, 5);
+      if (!mac.includes('\\u0016')) throw new Error('Cmd+V lost image paste');
+      console.log('Image paste sends Ctrl+V to the TUI; text/empty clipboard and alternate paste shortcuts verified');
+    }
     if (checkWheel) {
       const waitForMouseScreen = async (text) => {
         for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -439,6 +464,19 @@ async function run() {
       await send('Runtime.evaluate', { expression: `document.querySelector('[data-pane=main] .xterm').dispatchEvent(new MouseEvent('mousemove',{clientX:${x + 72},clientY:${y},buttons:0,altKey:true,bubbles:true}))` });
       await new Promise((resolve) => setTimeout(resolve, 150));
       if (!/\\u001b\[<43;/.test(writes.slice(altMotionStart))) throw new Error('Alt motion did not reach the normal-screen application');
+      const selectionArea = await send('Runtime.evaluate', { expression: "(()=>{const r=document.querySelector('[data-pane=main] .xterm-screen').getBoundingClientRect();return{x:r.x+3,y:r.y+r.height/2}})()", returnByValue: true });
+      const selectionPoint = selectionArea.result.result.value;
+      const dragStart = writes.length;
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: selectionPoint.x, y: selectionPoint.y, button: 'left', buttons: 1, clickCount: 1 });
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: selectionPoint.x + 100, y: selectionPoint.y, button: 'left', buttons: 1 });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: selectionPoint.x + 100, y: selectionPoint.y, button: 'left', buttons: 0, clickCount: 1 });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (/\\u001b\[</.test(writes.slice(dragStart))) throw new Error(`Local selection leaked mouse reports: ${writes.slice(dragStart)}`);
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'c', code: 'KeyC', modifiers: 2 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'c', code: 'KeyC', modifiers: 2 });
+      for (let attempt = 0; attempt < 40 && !writes.slice(dragStart).includes('CLIPBOARD_COPY'); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+      if (!/CLIPBOARD_COPY .*LINE_/.test(writes.slice(dragStart))) throw new Error(`Drag selection was not copied while tracking remained enabled: ${writes.slice(dragStart)}`);
+      console.log('Normal-screen drag selection works with leaked mouse tracking and emits no remote click/drag reports');
       const before = writes.length;
       const previous = await send('Runtime.evaluate', { expression: "Number((document.querySelector('[data-pane=main] .xterm-rows')?.textContent.match(/LINE_(\\d+)/g)||[]).at(-1)?.slice(5))" });
       socket.send(JSON.stringify({ id: ++id, method: 'Input.dispatchMouseEvent', params: { type: 'mouseWheel', x, y, deltaY: -120, deltaX: 0, modifiers: 0 } }));
@@ -746,7 +784,7 @@ async function run() {
       if (refocused.result?.result?.value !== sourceId) throw new Error(`Source pane lost focus: ${JSON.stringify(refocused)}`);
     }
     if (checkHelp) await typeKeys('pexit');
-    else if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkCrt || checkCwd || checkUpdate) await typeKeys('portal-exit');
+    else if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkCrt || checkCwd || checkUpdate || checkClipboard) await typeKeys('portal-exit');
     else await enter('portal-exit');
     // The app may close before DevTools can acknowledge the Enter event.
     for (let attempt = 0; attempt < 80 && !exited; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 250));

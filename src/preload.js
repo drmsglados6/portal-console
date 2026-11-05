@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('portalConsole', {
   endingAudio: () => ipcRenderer.invoke('ending:audio'),
   logoArt: (columns, rows) => ipcRenderer.invoke('app:logo-art', { columns, rows }),
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
+  readClipboardContent: () => ipcRenderer.invoke('clipboard:read-content'),
   writeClipboard: (value) => ipcRenderer.invoke('clipboard:write', value),
   create: (options) => ipcRenderer.invoke('terminal:create', options),
   restart: (id, preserveCwd = true) => ipcRenderer.invoke('terminal:restart', { id, preserveCwd }),

@@ -5,7 +5,7 @@ const { portalCommandInput } = require('../portal-command');
 const { remapPreset } = require('../preset-switch');
 const { selectWindowNumbers } = require('../window-selection');
 const { wheelScrollHandler } = require('../wheel-scroll');
-const { filterMouseMotion, resetMouseTracking, resetAfterAlternateScreen, shellMouseMotionHandler } = require('../mouse-input');
+const { filterMouseMotion, resetMouseTracking, resetAfterAlternateScreen, shellMouseMotionHandler, shellMouseSelectionHandler } = require('../mouse-input');
 const { helpSections } = require('../help');
 const { appendMediaPane, removeMediaPane, inferMediaKind } = require('../media-command');
 const { createMediaView } = require('./media-view');
@@ -265,6 +265,7 @@ async function switchPreset(name, sourceId) {
         pane.observer.disconnect();
         pane.wheelTarget.removeEventListener('wheel', pane.wheelListener, true);
         pane.wheelTarget.removeEventListener('mousemove', pane.mouseMotionListener, true);
+        pane.wheelTarget.removeEventListener('mousedown', pane.mouseSelectionListener, true);
         pane.mouseResetSubscription.dispose();
         clearTimeout(pane.startupTimer);
         pane.terminal.dispose();
@@ -449,6 +450,8 @@ async function terminalElement(spec) {
   const mouseResetSubscription = resetAfterAlternateScreen(terminal, () => config.appearance.mouseWheelMode);
   const mouseMotionListener = shellMouseMotionHandler(terminal, () => config.appearance.mouseWheelMode);
   wheelTarget.addEventListener('mousemove', mouseMotionListener, { capture: true });
+  const mouseSelectionListener = shellMouseSelectionHandler(terminal, () => config.appearance.mouseWheelMode);
+  wheelTarget.addEventListener('mousedown', mouseSelectionListener, { capture: true });
   terminal.onData((data) => {
     data = filterMouseMotion(data, terminal.buffer.active.type, config.appearance.mouseWheelMode);
     if (!data) return;
@@ -476,7 +479,7 @@ async function terminalElement(spec) {
   });
   const observer = new ResizeObserver(() => fitPane(spec.id));
   observer.observe(host);
-  const paneState = { spec, element: pane, terminal, fit, observer, commandInput, wheelTarget, wheelListener, mouseResetSubscription, mouseMotionListener, generation: 0, pendingStartup: spec.startupCommand || null };
+  const paneState = { spec, element: pane, terminal, fit, observer, commandInput, wheelTarget, wheelListener, mouseResetSubscription, mouseMotionListener, mouseSelectionListener, generation: 0, pendingStartup: spec.startupCommand || null };
   panes.set(spec.id, paneState);
   const created = await window.portalConsole.create({ id: spec.id, cols: 80, rows: 24 });
   paneState.generation = created.generation;
@@ -619,8 +622,16 @@ async function copySelection() {
 async function pasteClipboard() {
   const pane = panes.get(focusedId);
   if (!pane || commandMode) return;
-  const value = await window.portalConsole.readClipboard();
-  if (value) pane.terminal.paste(value);
+  try {
+    const content = await window.portalConsole.readClipboardContent();
+    if (commandMode || endingPlayback || panes.get(pane.spec.id) !== pane || !pane.element.isConnected) return;
+    // Image-aware TUIs such as OpenCode read the local system clipboard when
+    // they receive Ctrl+V. Bracketed-pasting an empty string loses that action.
+    if (content.hasImage) {
+      pane.commandInput.reset();
+      window.portalConsole.write(pane.spec.id, '\x16');
+    } else if (content.text) pane.terminal.paste(content.text);
+  } catch (error) { showStatus(`PASTE FAILED: ${error.message}`); }
 }
 
 function setCommandMode(value, message = '') {

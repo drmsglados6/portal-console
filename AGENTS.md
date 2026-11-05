@@ -19,6 +19,7 @@ Portal Console is a cross-platform terminal application. The current implementat
 - Keep `pconsole`, `phelp`, `ppreset`, `prestart`, `pmedia`, `pexit`, `pupdate` and corresponding `portal-*` internal names compatible. Internal commands are handled inside the app, not installed as global shell commands.
 - Preserve installer method, install location, settings, presets and logs during updates. Do not mix Windows NSIS/simple installers or Linux deb/AppImage installs.
 - Public-release downloads must be matched to OS/architecture/method and size/SHA-256 verified before installation. Network/check failures must not stop terminal sessions.
+- Numeric `-n` versions are distribution revisions (`0.1.8 < 0.1.8-1 < 0.1.8-2 < 0.1.9`), not SemVer prerelease ordering. Revision releases use latest=false for old-client compatibility; revision-aware updaters use the release list. Keep this distinction in Rust migration.
 - Ad-hoc macOS signature integrity is not Developer ID trust/notarization. Distinguish CI success from downloaded-app Gatekeeper behavior and actual-machine fixes.
 - Original Portal lyrics, credits, AA and audio are read from a local Steam installation. Do not commit those copyrighted assets, personal media, diagnostic logs or credentials.
 - Do not copy Windows `node_modules` to Unix. Install dependencies natively on each target OS.

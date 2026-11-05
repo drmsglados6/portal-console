@@ -1,5 +1,8 @@
 # TODO
 
+- [ ] v0.1.8-1の入力修正・リビジョン更新対応を全OS CIで検証して配布する。通常画面のドラッグ選択とローカルOpenCodeへの画像Ctrl+V転送を含む。
+- [ ] 更新後の実際のMac SSHとOpenCode画像添付を確認する。報告元の実行中Windows版は0.1.6と確認済み。0.1.8の実機再発と混同しない。
+
 - [x] v0.1.8を全OS CIで検証して配布する（pupdate／portal-update、一時更新スクリプト、F4、短縮名、CRT停止）。公開後のWindows待機／portable置換修正もCI成果物へ反映し、旧版ランタイムのcheck-onlyを確認。
 - [x] CRT再現を一時停止し、保存済みenabled=trueも描画せず実装・設定を保持する。
 - [x] AGENTS.md・DEVELOPMENT_CONTEXT.mdと0.2.0ネイティブ化要件を整備する。

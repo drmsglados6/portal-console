@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline/promises');
 const updater = require('./updater');
+const targetVersion = require('../package.json').version;
 const supportFiles = {
   helper: require('../installer/install-unix.sh'),
   windowsRunner: require('./update-runner.ps1'),
@@ -12,16 +13,16 @@ const supportFiles = {
 async function run() {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
-    console.log('Portal Console one-time updater to v0.1.8. Use update-once.ps1 or update-once.sh. Options: --check, --yes. No system Node.js or GitHub login required.');
+    console.log(`Portal Console one-time updater to v${targetVersion}. Use update-once.ps1 or update-once.sh. Options: --check, --yes. No system Node.js or GitHub login required.`);
     return;
   }
   if (args.some((arg) => !['--check', '--yes'].includes(arg))) throw new Error('Use --check or --yes only.');
   const resources = process.platform === 'darwin' ? path.resolve(path.dirname(process.execPath), '../Resources') : path.join(path.dirname(process.execPath), 'resources');
   const build = JSON.parse(fs.readFileSync(path.join(resources, 'build-info.json'), 'utf8'));
   if (build.appId !== 'science.aperture.portalconsole') throw new Error('Run this updater with the installed Portal Console runtime.');
-  console.log(`Checking v0.1.8; installed version: ${build.version}`);
-  const result = await updater.checkForUpdate(build.version, { tag: '0.1.8' });
-  if (!result.available) { console.log('This installation is already at v0.1.8 or newer.'); return; }
+  console.log(`Checking v${targetVersion}; installed version: ${build.version}`);
+  const result = await updater.checkForUpdate(build.version, { tag: targetVersion });
+  if (!result.available) { console.log(`This installation is already at v${targetVersion} or newer.`); return; }
   const context = updater.updateContext({ packaged: true });
   console.log(`Update: ${build.version} -> ${result.version}; method: ${context.method}; target: ${context.target}`);
   if (args.includes('--check')) return;

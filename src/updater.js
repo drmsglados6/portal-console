@@ -10,18 +10,21 @@ const { spawn } = require('node:child_process');
 const { readInstallation } = require('./installation');
 
 const REPOSITORY = 'drmsglados6/portal-console';
-const API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
+const API = `https://api.github.com/repos/${REPOSITORY}/releases?per_page=100`;
 const MAX_PACKAGE_BYTES = 1024 * 1024 * 1024;
 
 function stableVersion(value) {
-  const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value);
-  if (!match || match.slice(1).some((part) => !Number.isSafeInteger(Number(part)))) throw new Error(`Invalid stable version: ${value}`);
-  return match.slice(1).map(Number);
+  // A numeric -N is this project's distribution revision, newer than the
+  // unsuffixed base. It is deliberately not SemVer prerelease ordering.
+  const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([1-9]\d*))?$/.exec(value);
+  const parts = match && [Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4] || 0)];
+  if (!parts || parts.some((part) => !Number.isSafeInteger(part))) throw new Error(`Invalid stable version: ${value}`);
+  return parts;
 }
 
 function newerVersion(candidate, current) {
   const a = stableVersion(candidate), b = stableVersion(current);
-  for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] > b[index];
+  for (let index = 0; index < 4; index += 1) if (a[index] !== b[index]) return a[index] > b[index];
   return false;
 }
 
@@ -47,6 +50,7 @@ function request(url, redirects = 0) {
 }
 
 async function checkForUpdate(currentVersion, { open = request, tag } = {}) {
+  stableVersion(currentVersion);
   if (tag) stableVersion(tag);
   const response = await open(tag ? `https://api.github.com/repos/${REPOSITORY}/releases/tags/v${tag.replace(/^v/, '')}` : API);
   const chunks = [];
@@ -55,8 +59,15 @@ async function checkForUpdate(currentVersion, { open = request, tag } = {}) {
     size += chunk.length; chunks.push(Buffer.from(chunk));
     if (size > 4 * 1024 * 1024) throw new Error('Release metadata is too large.');
   }
-  const release = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  if (release.draft || release.prerelease || !Array.isArray(release.assets)) throw new Error('Latest release is not a stable release.');
+  const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  const supported = (release) => {
+    if (!release || release.draft || release.prerelease || typeof release.tag_name !== 'string' || !Array.isArray(release.assets)) return false;
+    try { stableVersion(release.tag_name); return true; } catch { return false; }
+  };
+  if (!tag && !Array.isArray(data)) throw new Error('Invalid GitHub releases response.');
+  const candidates = (tag ? [data] : data).filter(supported);
+  const release = candidates.reduce((latest, entry) => !latest || newerVersion(entry.tag_name, latest.tag_name) ? entry : latest, null);
+  if (!release || tag && release.tag_name.replace(/^v/, '') !== tag.replace(/^v/, '')) throw new Error('No matching stable release found.');
   const version = release.tag_name?.replace(/^v/, '');
   return { available: newerVersion(version, currentVersion), version, release };
 }

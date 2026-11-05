@@ -58,7 +58,7 @@ function helpSections(frontend, config) {
     ] },
     { title: gui ? 'CLIPBOARD, DISPLAY AND MEDIA' : 'TEXT BROWSERS AND LIMITATIONS', entries: gui ? [
       ['Ctrl+Shift+C / Mac Cmd+C', 'Copy the current selection. Ctrl+C also copies when a selection exists; otherwise it interrupts the running program.'],
-      ['Ctrl+V / Mac Cmd+V / Shift+Insert', 'Paste into the focused terminal. Ctrl+Insert copies; right-click copies a selection or pastes.'],
+      ['Ctrl+V / Mac Cmd+V / Shift+Insert', 'Paste text into the focused terminal. For an image clipboard, send Ctrl+V to the local image-aware TUI (e.g. OpenCode). Ctrl+Insert copies; right-click copies a selection or pastes.'],
       ['Ctrl++ / Ctrl+- / Ctrl+0', 'Increase / decrease / reset terminal font size (including numpad keys).'],
       ['Mouse wheel / Alt+wheel', 'Scroll local shell history; alternate-screen apps receive wheel events. Alt+wheel always defers to the app.'],
       ['Mouse recovery Ctrl+Shift+M', 'Reset leaked mouse tracking in the focused terminal without restarting SSH or the shell. Command mode M does the same.'],

@@ -46,7 +46,7 @@ Tauri等のRust＋WebViewを候補に入れる場合も、全ワークスペー�
 - VT状態機械、通常／代替バッファ、スクロールバック、コピー選択、貼り付け・bracketed paste、TTYサイズ変更を独立したcoreで扱う。
 - Windows ConPTYとUnix PTYを抽象化する。`portable-pty`等は候補であり、PowerShell／CMD／bash／zsh／SSH／TUIで試す。
 - xterm.jsからの変更はVTの互換性変更を伴う。既存SGR・OSC・DECSET・マウス・色・カーソル・ワイド文字のfixtureを移行する。ANSIパーサーと描画器を混同しない。
-- 通常画面のidle SGRマウス移動を抑止し、履歴スクロールを最下部へ戻さない。代替画面／アプリケーションモード／Alt override／クリック／ドラッグを保持する。
+- 通常画面のidleマウス移動をSGR／旧形式とも抑止し、履歴スクロールを最下部へ戻さない。localモードでは追跡要求が残っていても通常ドラッグで文字選択できること。代替画面／アプリケーションモード／Alt overrideではアプリへのクリック／ドラッグを保持する。
 - 高精度トラックパッドの小さいdeltaを蓄積し、通常画面の履歴スクロールをSSH先へ転送しない。
 - Ctrl+Shift+M／コマンドモードMの追跡リセットは、PTYや履歴を破棄しない。
 - R／`prestart`はCWD保持、Shift+R／`--reset-cwd`は既定CWD。Windowsの一時シェル連携はユーザープロファイルを変更しない。
@@ -56,9 +56,11 @@ Tauri等のRust＋WebViewを候補に入れる場合も、全ワークスペー�
 ### 3.3 内部コマンド・ヘルプ・TTY
 
 - `phelp`／`portal-help`、`ppreset`／`portal-preset`、`prestart`／`portal-restart`、`pmedia`／`portal-media`、`pexit`／`portal-exit`、`pupdate`／`portal-update`を維持する。
+- 更新番号の数値リビジョン契約：`0.1.8 < 0.1.8-1 < 0.1.8-2 < 0.1.9`。RustのSemVer crateのprerelease順序をそのまま採用しない。旧0.1.8互換のGitHub latestと、リビジョン対応クライアントのRelease一覧による検出を区別する。
 - 入力の断片、バックスペース、キャンセル、端末応答を区別する。`echo pexit`、未知の接尾辞、パイプ等を内部コマンドとして誤認しない。
 - 内部コマンドのグローバルなshell関数登録はしない。shell promptとTUIの判定に改善を加える場合は互換仕様として明文化する。
 - GUI／TTYのヘルプを同じ構造化データから生成し、現行TTYのCtrl+B操作・ページ送り・番号選択を維持する。
+- ローカルOpenCode等の画像ペースト用Ctrl+Vを、空テキストの貼り付けとして消費しない。テキストのbracketed pasteと画像対応TUIのクリップボード操作を区別する。ローカル画像をSSH先へ自動転送する機能とは分ける。
 - DISPLAY／WAYLAND_DISPLAYなしのLinux自動フォールバック、端末復元、終了時のカーソル／raw mode解除、SSHでの使い方を継続する。
 
 ### 3.4 メディア・原作データ

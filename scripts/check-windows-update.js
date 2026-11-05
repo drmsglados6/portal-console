@@ -71,7 +71,7 @@ try {
     const updated = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('src/update-runner.ps1'), '-PlanFile', planFile, '-NoRestart', '-NonInteractive', '-SkipEnvironment'], { encoding: 'utf8', timeout: 120000 });
     assert.equal(updated.status, 0, `${updated.stdout}\n${updated.stderr}\n${fs.existsSync(path.join(log, 'update.log')) ? fs.readFileSync(path.join(log, 'update.log'), 'utf8') : ''}`);
     const upgraded = JSON.parse(fs.readFileSync(path.join(packagedTarget, '.portal-console-install.json'), 'utf8').replace(/^\uFEFF/, ''));
-    assert.equal(upgraded.method, 'windows-simple'); assert.equal(upgraded.previousVersion, version);
+    assert.equal(upgraded.method, 'windows-simple'); assert.equal(upgraded.version, version); assert.equal(upgraded.previousVersion, version);
     const uninstalled = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.resolve('installer/uninstall.ps1'), '-InstallDir', packagedTarget, '-LogDir', log, '-SkipEnvironment'], { encoding: 'utf8' });
     assert.equal(uninstalled.status, 0, uninstalled.stderr);
     console.log('Real packaged Electron runtime and simple-ZIP update worker verified without changing user PATH');
