@@ -35,4 +35,11 @@ sh ./update-once.sh "$HOME/Applications/portal-console.app" --check
 
 ## 実機確認について
 
-今回のマウス文字漏れの画像は、インストール済み0.1.6での報告と確認しています。新版のマウス操作は再現fixtureで検証し、画像貼り付けはTUIへのキー配送を検証します。更新後の実際のSSH接続・OpenCode画像添付は実機で確認してください。MacのDeveloper ID／公証は引き続き未設定です。
+今回のマウス文字漏れの画像は、インストール済み0.1.6での報告と確認しています。新版のマウス操作は再現fixtureで、画像貼り付けはTUIへのキー配送を検証済みです。更新後の実際のSSH接続・OpenCode画像添付は実機で確認してください。MacのDeveloper ID／公証は引き続き未設定です。
+
+## 配布・検証結果
+
+- Windows／Linux／Mac Intel・ARM64、Ubuntu 24.04 GUI／TTY、更新・署名・画像貼り付け／選択のCIが全ジョブ成功：<https://github.com/drmsglados6/portal-console/actions/runs/42052805317>。
+- タグ実行時のUbuntu起動確認タイムアウトに対して検証用データを分離し、起動待ちを調整して再検証しました。タグの履歴は変更せず、公開ジョブがタグと実行用ソースの一致を確認しています。
+- 全18アセットの添付、prerelease=false、旧latestエンドポイントの互換性を確認しました。
+- 公開後の一時更新スクリプトのcheck-onlyで、実際の0.1.6ランタイムから0.1.8-1への更新候補・NSIS方式・既存パスを検出できました。実機インストールや稼働中PTYの終了は行っていません。

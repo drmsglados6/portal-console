@@ -2,7 +2,9 @@
 
 ## Current State
 
-- Preparing v0.1.8-1 as requested (not yet released): normal-screen local drag selection works even when mouse tracking is still active, with TUI/application/Alt handling retained; legacy idle reports are filtered as well as SGR. Image clipboard paste forwards Ctrl+V to the local image-aware TUI instead of losing the action through readText-only paste. These changes are not in v0.1.8 assets.
+- Released **v0.1.8-1**: https://github.com/drmsglados6/portal-console/releases/tag/v0.1.8-1 . All 18 assets are uploaded; draft=false and prerelease=false. Normal-screen local drag selection works even when mouse tracking is still active, with TUI/application/Alt handling retained; legacy idle reports are filtered as well as SGR. Image clipboard paste forwards Ctrl+V to the local image-aware TUI instead of losing the action through readText-only paste.
+- Release verification: https://github.com/drmsglados6/portal-console/actions/runs/42052805317 passed every job, including Windows/Linux/Mac Intel/ARM64 clipboard and mouse fixtures, Ubuntu 24.04 GUI/TTY, NSIS/simple/AppImage/Mac updates and legacy deb upgrade. The first tag run timed out in Ubuntu's short/shared-profile GUI check; the checker now has isolated data and a longer startup window. The publication job confirmed runtime sources match the unchanged v0.1.8-1 tag before publishing; `622efd3` changes only verification/publication tooling from that tag.
+- After publication, update-once check-only successfully used the real installed 0.1.6 runtime and detected upgrade to 0.1.8-1 via windows-nsis at the existing location, without installation or session shutdown. Anonymous revision-aware release discovery selects 0.1.8-1 and the correct setup asset; the legacy /releases/latest endpoint still returns v0.1.8 as intended. Actual OpenCode image attachment and the user's Mac SSH session still need user-machine verification after upgrading.
 - Revision updates use project ordering `0.1.8 < 0.1.8-1 < 0.1.8-2 < 0.1.9` and discover releases through the list endpoint. Numeric revisions are published without the prerelease flag, but with latest=false to keep old 0.1.8 clients' three-part parser working. Migrate older versions with the revision's update-once script; do not advertise old 0.1.8 pupdate as revision-aware.
 - Latest user report was from the currently running Windows installation, whose build-info is **0.1.6**, not a verified 0.1.8 regression. User confirmed the affected OpenCode runs locally on Windows. Do not stop/update that installation as a diagnostic shortcut.
 
@@ -15,7 +17,7 @@
 - Agent entry point: `AGENTS.md`. User requirements/history/corrected assumptions: `DEVELOPMENT_CONTEXT.md`. Mac actual-machine scroll/Gatekeeper checks remain pending.
 - CLI aliases are registered by Windows NSIS/simple installers, Linux deb hooks, and the Unix helper for AppImage/Mac. The Unix helper uses `~/.local/bin`; copying a Mac app from DMG alone does not register a CLI. Installer registration preserves foreign commands named `pconsole`. Windows NSIS tracks whether it added the user PATH entry and removes only its own entry on uninstall.
 
-- Source version: `0.1.8-1` (latest tagged release: `0.1.8`; revised Windows/helper assets from `8dbb27e`)
+- Source version: `0.1.8-1` (latest tagged release: `0.1.8-1`; legacy GitHub latest flag remains on `0.1.8`)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`

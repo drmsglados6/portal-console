@@ -1,5 +1,7 @@
 # v0.1.8 — アプリ内更新・短縮コマンド・ネイティブ移行準備
 
+**後続の修正リビジョン[v0.1.8-1](https://github.com/drmsglados6/portal-console/releases/tag/v0.1.8-1)を公開しました。** マウス選択・画像貼り付けの修正を含みます。旧クライアント互換のためGitHubのlatest指定は0.1.8を維持しています。0.1.8-1へ移行する場合は、リンク先Releaseの一時更新スクリプトか通常インストーラを使ってください。
+
 ## 追加・変更
 
 - `pupdate`／`portal-update`で公開GitHub Releaseの最新安定版へ更新できます。`--check`は確認だけです。ログイン・gh・システムNode.jsは不要です。
