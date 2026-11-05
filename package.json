@@ -1,6 +1,6 @@
 {
   "name": "portal-console",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "A Portal-inspired multi-screen terminal for Linux, macOS, and Windows",
   "author": "Portal Console contributors",
   "homepage": "https://github.com/drmsglados6/portal-console",
@@ -45,6 +45,7 @@
       "src/**/*",
       "assets/**/*",
       "dist/**/*",
+      "installer/install-unix.sh",
       "package.json"
     ],
     "asarUnpack": [

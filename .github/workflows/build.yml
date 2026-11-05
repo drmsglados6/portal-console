@@ -74,6 +74,12 @@ jobs:
       - name: Verify terminal mouse and scroll modes
         if: runner.os != 'Linux'
         run: node scripts/check-gui-exit.js --wheel
+      - name: Verify update command checks and recoverable errors
+        if: runner.os != 'Linux'
+        run: node scripts/check-gui-exit.js --update
+      - name: Verify update command checks on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/check-gui-exit.js --update
       - name: Verify terminal mouse and scroll modes on Linux
         if: runner.os == 'Linux'
         run: xvfb-run -a node scripts/check-gui-exit.js --wheel
@@ -134,6 +140,8 @@ jobs:
             release/*.zip
             release/*.blockmap
             release/*.sh
+            release/*.ps1
+            release/*.cjs
 
   release:
     name: Publish tagged release

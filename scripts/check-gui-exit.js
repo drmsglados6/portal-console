@@ -33,6 +33,7 @@ async function run() {
   const checkRegex = process.argv.includes('--regex');
   const checkCrt = process.argv.includes('--crt');
   const checkHelp = process.argv.includes('--help');
+  const checkUpdate = process.argv.includes('--update');
   const checkCwd = process.argv.includes('--cwd');
   const packaged = process.argv.includes('--packaged');
   const sourceId = process.argv.includes('--third') ? 'third' : 'main';
@@ -42,7 +43,7 @@ async function run() {
   const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-gui-check-'));
   let mainMediaDirectory = path.join(configHome, 'main directory');
   let auxMediaDirectory = path.join(configHome, 'aux directory');
-  if (checkWheel) {
+  if (checkWheel || checkUpdate) {
     const mock = path.join(configHome, 'mouse-server.js');
     fs.writeFileSync(mock, "process.stdin.setRawMode(true);process.stdin.resume();process.stdin.on('data',()=>{});process.stdout.write('MOCK_NATIVE_READY\\r\\n');\n");
     const folder = path.join(configHome, 'portal-console');
@@ -117,9 +118,17 @@ async function run() {
       }
     }));
   }
+  if (checkCrt) {
+    const folder = path.join(configHome, 'portal-console'); fs.mkdirSync(folder, { recursive: true });
+    const file = path.join(folder, 'config.json');
+    const stored = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+    stored.appearance = { ...stored.appearance, crt: { enabled: true } };
+    fs.writeFileSync(file, JSON.stringify(stored));
+  }
   fs.writeFileSync(path.join(configHome, 'package.json'), JSON.stringify({ name: 'portal-gui-exit-check', main: 'main.js' }));
   let mockWindowLaunch = checkNewWindow ? "const cp=require('node:child_process'),realSpawn=cp.spawn; cp.spawn=function(file,args,options){if(file===process.execPath&&options?.detached){process.stdout.write('NEW_WINDOW_SPAWN '+JSON.stringify(args)+'\\n');return {pid:12345,on(){return this},unref(){}};}return realSpawn.apply(this,arguments)};" : '';
-  if (checkWheel) mockWindowLaunch += `require(${JSON.stringify(require.resolve('node-pty'))}).spawn=()=>({pid:0,onData(callback){this.output=callback;queueMicrotask(()=>callback('MOCK_NATIVE_READY\\r\\n'));return{dispose(){}}},onExit(){return{dispose(){}}},write(command){const data=command==='PORTAL_TEST_INITIAL'?'\\x1b[?1003h\\x1b[?1006h'+Array.from({length:120},(_,i)=>'LINE_'+i+'\\r\\n').join(''):command==='PORTAL_TEST_ALT'?'\\x1b[?1049h\\x1b[?1003h\\x1b[?1006hALT_READY':command==='PORTAL_TEST_NORMAL_MOUSE'?'\\x1b[?1003h\\x1b[?1006h':command==='PORTAL_TEST_NORMAL'?'\\x1b[?1049l':'';if(data)this.output(data)},resize(){},pause(){},resume(){},kill(){}});`;
+  if (checkUpdate) mockWindowLaunch += `let updateChecks=0;require(${JSON.stringify(path.join(__dirname, '..', 'src', 'updater.js'))}).checkForUpdate=async()=>{if(updateChecks++)throw new Error('TEST_OFFLINE');return {available:false,version:'0.1.8'}};`;
+  if (checkWheel || checkUpdate) mockWindowLaunch += `require(${JSON.stringify(require.resolve('node-pty'))}).spawn=()=>({pid:0,onData(callback){this.output=callback;queueMicrotask(()=>callback('MOCK_NATIVE_READY\\r\\n'));return{dispose(){}}},onExit(){return{dispose(){}}},write(command){const data=command==='PORTAL_TEST_INITIAL'?'\\x1b[?1003h\\x1b[?1006h'+Array.from({length:120},(_,i)=>'LINE_'+i+'\\r\\n').join(''):command==='PORTAL_TEST_ALT'?'\\x1b[?1049h\\x1b[?1003h\\x1b[?1006hALT_READY':command==='PORTAL_TEST_NORMAL_MOUSE'?'\\x1b[?1003h\\x1b[?1006h':command==='PORTAL_TEST_NORMAL'?'\\x1b[?1049l':'';if(data)this.output(data)},resize(){},pause(){},resume(){},kill(){process.stdout.write('TEST_PTY_KILL\\n')}});`;
   fs.writeFileSync(path.join(configHome, 'main.js'), `${mockWindowLaunch} const {ipcMain,BrowserWindow}=require('electron'); ipcMain.on('terminal:write',(_event,value)=>process.stdout.write('WRITE '+JSON.stringify(value)+'\\n')); ipcMain.on('app:quit',()=>process.stdout.write('QUIT\\n')); require(${JSON.stringify(path.join(__dirname, '..', 'src', 'main.js'))});\n`);
   if (checkMedia) fs.appendFileSync(path.join(configHome, 'main.js'), "require('electron').app.whenReady().then(()=>{ipcMain.removeHandler('clipboard:read');ipcMain.handle('clipboard:read',()=> 'https://example.org/');BrowserWindow.getAllWindows()[0]?.webContents.setBackgroundThrottling(false);});\n");
   const child = spawn(electron, [...(packaged ? ['--config', path.join(configHome, 'portal-console', 'config.json'), `--user-data-dir=${path.join(configHome, 'runtime')}`, '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] : [configHome]), '--windowed', ...(checkPreset ? ['--preset', '3x2'] : []), `--remote-debugging-port=${port}`], {
@@ -258,6 +267,19 @@ async function run() {
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       console.log('Comprehensive GUI help, F1 and portal-restart verified');
     }
+    if (checkUpdate) {
+        const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true })).result?.result?.value;
+        await typeKeys('pupdate --check');
+        for (let attempt = 0; attempt < 40 && !await evaluate("document.querySelector('#mode-indicator').textContent.includes('UP TO DATE')"); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+        if (!await evaluate("document.querySelector('#mode-indicator').textContent.includes('UP TO DATE')")) throw new Error('pupdate --check did not return its status');
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+        await typeKeys('portal-update --check');
+        for (let attempt = 0; attempt < 40 && !await evaluate("document.querySelector('#mode-indicator').textContent.includes('TEST_OFFLINE')"); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+        if (!await evaluate("document.querySelector('#mode-indicator').textContent.includes('UPDATE FAILED') && document.querySelector('#mode-indicator').textContent.includes('TEST_OFFLINE')")) throw new Error(`Update error did not preserve the GUI: ${await evaluate("document.querySelector('#mode-indicator').textContent")}; ${writes.slice(-1200)}; ${errors}`);
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+        if (writes.includes('TEST_PTY_KILL') || writes.includes('\\u0003')) throw new Error('Update check/error interrupted the existing PTY');
+        console.log('GUI update aliases, check-only result and recoverable network error verified');
+    }
     if (checkCrt) {
       const state = () => send('Runtime.evaluate', { expression: `({
         enabled: document.body.classList.contains('crt-enabled'),
@@ -266,22 +288,21 @@ async function run() {
         pointerEvents: getComputedStyle(document.querySelector('.terminal-pane'), '::after').pointerEvents,
         glow: getComputedStyle(document.querySelector('.xterm-rows')).textShadow,
         dialog: document.querySelector('#crt-dialog').open,
+        hidden: document.querySelector('#crt-button').hidden,
+        disabled: document.querySelector('#crt-button').disabled,
         spacing: document.body.style.getPropertyValue('--crt-spacing')
       })`, returnByValue: true });
       let current = (await state()).result.result.value;
-      if (!current.enabled || !current.software || current.overlay === 'none' || current.pointerEvents !== 'none' || current.glow === 'none') throw new Error(`CRT software-rendering effects missing: ${JSON.stringify(current)}`);
-      await send('Runtime.evaluate', { expression: `document.querySelector('#crt-button').click(); document.querySelector('#crt-enabled').click()` });
+      if (current.enabled || !current.software || current.overlay !== 'none' || current.glow !== 'none' || !current.hidden || !current.disabled) throw new Error(`CRT was not suspended for saved enabled=true: ${JSON.stringify(current)}`);
+      await send('Runtime.evaluate', { expression: `document.querySelector('#crt-button').click()` });
       current = (await state()).result.result.value;
-      if (current.enabled || !current.dialog || current.overlay !== 'none' || current.glow !== 'none') throw new Error(`CRT disable failed: ${JSON.stringify(current)}`);
-      await send('Runtime.evaluate', { expression: `document.querySelector('#crt-enabled').click(); const slider = document.querySelector('[data-crt=scanlineSpacing]'); slider.value = '6'; slider.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('#crt-close').click()` });
-      current = (await state()).result.result.value;
-      if (!current.enabled || current.dialog || current.spacing !== '6px') throw new Error(`CRT live adjustment failed: ${JSON.stringify(current)}`);
+      if (current.enabled || current.dialog) throw new Error(`Suspended CRT settings opened: ${JSON.stringify(current)}`);
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'P', code: 'KeyP', windowsVirtualKeyCode: 80, modifiers: 10 });
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'g', code: 'KeyG', windowsVirtualKeyCode: 71 });
       current = (await state()).result.result.value;
       if (current.enabled) throw new Error('Command-mode G did not disable CRT');
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-      console.log('CRT software rendering, dialog toggle, live adjustment and command-mode toggle verified');
+      console.log('CRT remains suspended with saved enabled=true, disabled UI and command-mode G');
     }
     if (checkCwd) {
       const query = async (label, expected, prefix = '', suffix = '') => {
@@ -291,7 +312,8 @@ async function run() {
           if (value.result?.result?.value) return;
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
-        throw new Error(`Working directory was not ${expected}; ${errors}`);
+        const state = await send('Runtime.evaluate', { expression: "({text:document.querySelector('[data-pane=main] .xterm-rows').textContent,status:document.querySelector('#mode-indicator').textContent})", returnByValue: true });
+        throw new Error(`Working directory was not ${expected}; ${JSON.stringify(state.result?.result?.value)}; ${writes.slice(-1500)}; ${errors}`);
       };
       const restart = async (reset) => {
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'P', code: 'KeyP', modifiers: 10 });
@@ -724,7 +746,7 @@ async function run() {
       if (refocused.result?.result?.value !== sourceId) throw new Error(`Source pane lost focus: ${JSON.stringify(refocused)}`);
     }
     if (checkHelp) await typeKeys('pexit');
-    else if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkCrt || checkCwd) await typeKeys('portal-exit');
+    else if (checkPreset || checkMedia || checkWheel || checkLayout || checkNewWindow || checkCrt || checkCwd || checkUpdate) await typeKeys('portal-exit');
     else await enter('portal-exit');
     // The app may close before DevTools can acknowledge the Enter event.
     for (let attempt = 0; attempt < 80 && !exited; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 250));

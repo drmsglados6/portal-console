@@ -8,6 +8,8 @@ const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'dist');
 
 fs.mkdirSync(output, { recursive: true });
+esbuild.buildSync({ entryPoints: [path.join(root, 'src/update-once.js')], bundle: true, platform: 'node', format: 'cjs',
+  outfile: path.join(output, 'update-once.cjs'), loader: { '.sh': 'text', '.ps1': 'text' } });
 fs.copyFileSync(path.join(root, 'src/renderer/index.html'), path.join(output, 'index.html'));
 const pdf = path.join(root, 'node_modules/pdfjs-dist');
 esbuild.buildSync({ entryPoints: [path.join(pdf, 'build/pdf.worker.mjs')], bundle: true,

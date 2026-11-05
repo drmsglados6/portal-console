@@ -2,6 +2,8 @@
 
 窓別設定・表示メディア・ブラウザ・閉じる窓の指定記法についての将来設計は `WINDOW_MANAGER_PLAN.md` を参照してください。
 
+開発・引き継ぎの入口は[AGENTS.md](AGENTS.md)、現状は[HANDOFF.md](HANDOFF.md)、会話から引き継いだ経緯と判断は[DEVELOPMENT_CONTEXT.md](DEVELOPMENT_CONTEXT.md)です。0.2.0のRust／ネイティブ化要件は[NATIVE_REWRITE_0_2_0.md](NATIVE_REWRITE_0_2_0.md)を参照してください。
+
 初代 Portal のエンディング端末をオマージュした、クロスプラットフォーム対応のマルチスクリーンターミナルです。Debian/Ubuntu、macOS、Windows で動作し、GUI を利用できない Linux/SSH 環境では自動的に ANSI 版へフォールバックします。
 
 `original` の画面表現は、初代Portalのエンディングで歌詞、スタッフロール、右側AAが表示されるコンソール部分を視覚的な基準にしています。著作権のある歌詞やスタッフロール本文は同梱していませんが、通常のシェル出力やユーザー自身のスクリプトを同じ画面構成で表示できます。
@@ -21,8 +23,47 @@
 | `prestart` | `portal-restart` | 選択中のシェルを再起動。`--reset-cwd`も使用可能 |
 | `pmedia ./picture.jpg` | `portal-media ./picture.jpg` | メディアペインを開く。`--kind`／`--source`も使用可能 |
 | `pexit` | `portal-exit` | アプリ終了 |
+| `pupdate` | `portal-update` | 最新の安定版を確認し、確認後に現在のインストール方式で更新 |
+| `pupdate --check` | `portal-update --check` | 更新の有無だけ確認（ダウンロード・終了なし） |
 
 内部コマンドはPortal Console内で入力したときに処理されます。OSのグローバルコマンドとしては登録しません。ヘッドレス版では従来名と同じ機能制限があります。
+
+### アプリ内から更新する（v0.1.8以降）
+
+端末内で`pupdate`または`portal-update`を入力すると、公開GitHub Releaseの最新安定版を確認します。GitHubログイン・`gh`・システムNode.jsは不要です。現在と同じ版か古い版なら変更しません。`--check`は確認だけです。
+
+新しい版がある場合は、GUIの確認ダイアログ／ヘッドレスのY/N確認後にダウンロードし、GitHubの配布サイズとSHA-256を検証してからインストーラへ渡します。ダウンロード・検証・起動の失敗時はアプリを終了せずエラーを表示します。インストールを開始すると、この窓の端末セッションは終了します。他のPortal Console窓も先に閉じてください。設定・プリセット・ログは保持します。
+
+- Windows：NSIS／簡易版を維持して更新。portable版は元のportable.exeを置換します。
+- Linux：debは既存パッケージを`sudo apt-get install`で更新。補助インストール済みAppImageは同じ場所へ更新し、単体のAppImageは元のファイルを置換します。GUI更新には`x-terminal-emulator`／GNOME Terminal／Konsole／xtermのいずれかが必要です。ヘッドレスでは現在のTTYで実行します。
+- Mac：現在の.appの場所へ更新し、署名済みbundle内に記録を書き込みません。更新はTerminalで実行するため、求められた場合はTerminal操作を許可してください。アプリ名は`portal-console.app`を使用してください。Developer ID署名・公証の未設定によるGatekeeper制約は引き続きあります。
+
+インストール中のエラーは更新ログに残します（GUIは設定ディレクトリの`logs/update.log`、ヘッドレスは`~/.portal-console-update.log`）。Windowsは失敗ダイアログ、Unixは更新用端末に詳細を表示します。Unixでは完了後に`pconsole`で再起動してください。開発ソースからの起動は自動置換せず、`git pull`で更新します。
+
+v0.1.7以前にはこのコマンドがないため、v0.1.8への初回更新には次の一時利用用スクリプトか従来のインストーラを使ってください。
+
+### 旧版からv0.1.8へ一度だけ更新する
+
+[v0.1.8 Release](https://github.com/drmsglados6/portal-console/releases/tag/v0.1.8)からWindowsは`update-once.ps1`、Linux／Macは`update-once.sh`をダウンロードしてください。Portal Consoleを閉じて、外部のPowerShell／ターミナルで実行します。スクリプトは同じReleaseの`update-once.cjs`を取得・サイズ／SHA-256検証し、インストール済みアプリのNodeランタイムで動かします。システムのNode.js・gh・GitHubログインは不要です。既存のインストール先・方式を引き継ぎ、v0.1.8より新しい版へは戻しません。
+
+Windows（通常はインストール先を自動検出）:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\update-once.ps1
+# 確認だけ、またはカスタムインストール先
+powershell -NoProfile -ExecutionPolicy Bypass -File .\update-once.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File .\update-once.ps1 -InstallDir "C:\path\to\portal-console"
+```
+
+Linux／Mac（通常のインストール先を自動検出。必要なら実行ファイル／.app／AppImageを指定）:
+
+```sh
+sh ./update-once.sh
+sh ./update-once.sh "$HOME/Applications/portal-console.app" --check
+sh ./update-once.sh "$HOME/.local/opt/portal-console/portal-console.AppImage"
+```
+
+通常は更新前にY/N確認します。自動実行する場合だけWindowsの`-Yes`、Unixの`--yes`を指定してください。旧版自体のランタイムが起動できない場合は、この方法を使わず新しい通常インストーラ／DMGから更新してください。
 
 ## Modes
 
@@ -33,7 +74,7 @@
 - 左半分: プライマリターミナル
 - 右上: 補助ターミナル
 - 右下: 指定画像から自動生成したAA（既定はAperture Scienceロゴ）
-- Consolas 優先のオレンジ文字、CRT グロー、走査線を表示
+- Consolas 優先のオレンジ文字（CRT効果はv0.1.8で一時停止）
 
 ### modern
 
@@ -399,7 +440,7 @@ macOSでDockやFinderから起動中のアプリをもう一度開くと、既�
 | `e` | originalモードのエンディング再生を開始 |
 | `r` | 作業ディレクトリを保持して選択中のターミナルを再起動。Windows環境変数も再読込 |
 | `Shift+R` | 作業ディレクトリを保持せず、プロファイルの既定位置から再起動 |
-| `g` | GUIのCRT効果をON/OFF |
+| `g` | CRT一時停止の案内を表示（現在は有効化できません） |
 | `?` | ヘルプを開く |
 | `h` / `k` | 前のターミナルを選択 |
 | `j` / `l` | 次のターミナルを選択 |
@@ -598,15 +639,15 @@ Rendererが無応答になった場合は自動的にフルスクリーンを解
 
 ### CRT Display Effects
 
-Windows・macOS・LinuxのGUIで、文字グロー、静的走査線、周辺減光、ガラス面の反射風ハイライトを利用できます。画面右下の **CRT** ボタンで設定を開き、スライダーで即時調整します。`Ctrl+Shift+P`でコマンドモードに入り、`G`を押すと全効果のON/OFFを切り替えられます。
+**v0.1.8では、リソース使用量に対する効果が見合わないというフィードバックを受け、CRT再現を一時無効化しています。** グロー・走査線・周辺減光・ガラス効果を描画せず、CRTボタンと設定操作を無効化しています。保存済みの`enabled: true`でも描画しません。コマンドモードの`G`は停止中の案内だけを表示します。装飾的な影・ぼかしも停止しています。
 
-設定画面での変更はそのウィンドウ内だけ有効です。起動時の設定を保存する場合は `config.json` の `appearance.crt` に指定してください（各項目は省略可能です）。
+実装と既存の`appearance.crt`設定は、将来の再検討に備えて保持します。以下は保存形式の参考で、現在の版では設定から有効化できません。
 
 ```json
 {
   "appearance": {
     "crt": {
-      "enabled": true,
+      "enabled": false,
       "glow": 0.35,
       "scanlines": 0.12,
       "scanlineSpacing": 3,
@@ -617,9 +658,9 @@ Windows・macOS・LinuxのGUIで、文字グロー、静的走査線、周辺減
 }
 ```
 
-強度は `0`〜`1`、走査線間隔は整数 `2`〜`8` pxです。`enabled: false`で無効、各強度を`0`にすると個別効果を消せます。端末・AA・エンディングに適用し、画像/PDF/Webビューや設定ダイアログには適用しません。選択・クリック・スクロールの座標は変えません。
+保存形式の強度は`0`〜`1`、走査線間隔は整数`2`〜`8` pxです。既存設定を削除・書き換えることなく、実行時の機能ゲートで無効化します。
 
-効果はCSSによる静的描画で、ハードウェアアクセラレーションを有効にする必要はありません。cool-retro-termの視覚表現を参考にした独自実装で、画面歪み、動的ノイズ、残光は今後の検討項目です。ヘッドレス版はCRT効果を描画しません。
+0.2.0のネイティブ化でもCRTの再有効化は初期要件に含めず、測定した描画コストと効果を見て判断します。ヘッドレス版もCRT効果を描画しません。
 
 ## Headless Limitations
 

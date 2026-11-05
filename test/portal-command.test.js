@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { portalCommandInput, portalExitInput } = require('../src/portal-command');
+const { portalCommandInput, portalExitInput, clearCommandLine } = require('../src/portal-command');
 const { remapPreset } = require('../src/preset-switch');
 const { MODERN_PRESETS, generatePreset, validate, DEFAULT_CONFIG } = require('../src/config');
 
@@ -69,9 +69,15 @@ test('portal-help is an internal command', () => {
   assert.deepEqual(portalCommandInput()('portal-help\r'), { type: 'help' });
 });
 
+test('update prompt cancellation never sends Ctrl+C to the shell', () => {
+  assert.equal(clearCommandLine('C:\\Windows\\System32\\cmd.exe'), '\x1b');
+  for (const command of ['powershell.exe', 'pwsh', '/bin/bash', '/bin/zsh']) assert.equal(clearCommandLine(command), '\x15');
+});
+
 test('short commands preserve long-command arguments, fragments and editing rules', () => {
   for (const [short, long] of [
     ['phelp', 'portal-help'], ['pexit', 'portal-exit'], ['prestart', 'portal-restart'],
+    ['pupdate', 'portal-update'], ['pupdate --check', 'portal-update --check'],
     ['prestart --reset-cwd', 'portal-restart --reset-cwd'], ['ppreset c1-2-1', 'portal-preset c1-2-1'],
     ['pmedia "C:\\my pictures\\photo.jpg"', 'portal-media "C:\\my pictures\\photo.jpg"'],
     ['pmedia --kind pdf --source https://example.com/book.pdf', 'portal-media --kind pdf --source https://example.com/book.pdf'],
@@ -83,7 +89,7 @@ test('short commands preserve long-command arguments, fragments and editing rule
     assert.equal(input(`echo ${short}\r`), null);
     assert.equal(input(`${short}\x1b[D\r`), null);
   }
-  for (const line of ['phelpful', 'ppresetx 3x2', 'pexit extra', 'pmedia-other x.png', 'echo phelp', 'pconsole']) {
+  for (const line of ['phelpful', 'ppresetx 3x2', 'pexit extra', 'pmedia-other x.png', 'echo phelp', 'pconsole', 'pupdate --force', 'portal-update --check extra', 'pupdate-other', 'pupdate | sh']) {
     assert.equal(portalCommandInput()(`${line}\r`), null);
   }
 });

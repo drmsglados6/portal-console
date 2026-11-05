@@ -2,10 +2,13 @@
 
 ## Current State
 
-- Unreleased main changes after v0.1.7: F4 temporarily maximizes/restores the selected terminal or media pane; focus/layout changes restore it. `pconsole` is the new short launcher, and `phelp`, `ppreset`, `prestart`, `pmedia`, `pexit` alias the existing internal commands. Existing long names remain valid.
+- v0.1.8 work: F4 temporarily maximizes/restores the selected pane; `pconsole`, short internal commands and `pupdate`/`portal-update` are implemented. Update commands use public GitHub Releases without gh/login, verify SHA-256/size, preserve installation method, then hand off to an independent worker. One-time `update-once.ps1`/`.sh` scripts bootstrap old releases to 0.1.8 using their bundled runtime.
+- CRT is temporarily suspended in v0.1.8, even for saved enabled=true. Source/preferences remain; controls and decorative blur are disabled. Do not re-enable by default. See `NATIVE_REWRITE_0_2_0.md` for the requested Rust/native rewrite preparation; no Rust implementation has begun.
+- Latest migration direction: introduce Rust functions behind the Electron frontend during subsequent 0.1.x releases, then reuse that core for a native frontend. The sidecar/Node-API bridge choice is still open; see section 7 of the rewrite plan.
+- Agent entry point: `AGENTS.md`. User requirements/history/corrected assumptions: `DEVELOPMENT_CONTEXT.md`. CI and Release verification status must be updated after this release is actually published.
 - CLI aliases are registered by Windows NSIS/simple installers, Linux deb hooks, and the Unix helper for AppImage/Mac. The Unix helper uses `~/.local/bin`; copying a Mac app from DMG alone does not register a CLI. Installer registration preserves foreign commands named `pconsole`. Windows NSIS tracks whether it added the user PATH entry and removes only its own entry on uninstall.
 
-- Source version: `0.1.7` (latest tagged release: `0.1.7`)
+- Source version: `0.1.8` (latest tagged release: `0.1.7`; 0.1.8 release in progress)
 - Runtime: Electron 43, xterm.js 6, node-pty 1.1
 - Executable name: `portal-console` (`portal-console.exe` on Windows)
 - GUI modes: fixed 4:3 `original`, configurable full-screen `modern`
@@ -117,7 +120,7 @@ If node-pty fails only in the packaged app, inspect `resources/app.asar.unpacked
 
 ## Known Risks
 
-- This workspace is managed with Git. The GitHub repository is `drmsglados6/portal-console` (private).
+- This workspace is managed with Git. The GitHub repository is `drmsglados6/portal-console` and is now **public** (verified with `gh repo view`; older private-repository notes are historical).
 - Hardware acceleration defaults off after a reported full-machine freeze. Software mode disables cursor blink; the configurable static CRT effects work in software mode.
 - Portal ending audio has unusually strong bass around the chorus; current defaults use quadratic volume and a `-8 dB` 200 Hz low shelf.
 - Each app window runs in its own Electron process with independent PTY sessions; use + WINDOW or Ctrl+Shift+N to launch another.

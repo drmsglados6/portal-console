@@ -25,7 +25,7 @@ const DEFAULT_CONFIG = Object.freeze({
     fontSizeStep: 1,
     hardwareAcceleration: false,
     mouseWheelMode: 'local',
-    crt: { enabled: true, glow: 0.35, scanlines: 0.12, scanlineSpacing: 3, vignette: 0.3, glass: 0.12 }
+    crt: { enabled: false, glow: 0.35, scanlines: 0.12, scanlineSpacing: 3, vignette: 0.3, glass: 0.12 }
   },
   controls: {
     closeSelectionSyntax: 'ranges'

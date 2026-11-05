@@ -26,9 +26,10 @@ function portalCommandInput() {
         continue;
       }
       if (character === '\r' || character === '\n') {
-        const canonical = line.replace(/^p(exit|help|restart|preset|media)(?=\s|$)/, 'portal-$1');
+        const canonical = line.replace(/^p(exit|help|restart|preset|media|update)(?=\s|$)/, 'portal-$1');
         let command = !escaped && (canonical === 'portal-exit' ? { type: 'exit' }
           : canonical === 'portal-help' ? { type: 'help' }
+          : /^portal-update(?:\s+--check)?$/.test(canonical) ? { type: 'update', checkOnly: canonical.endsWith('--check') }
           : /^portal-restart(?:\s+--reset-cwd)?$/.test(canonical) ? { type: 'restart', ...(canonical.endsWith('--reset-cwd') ? { preserveCwd: false } : {}) }
           : /^portal-preset\s+(\S+)$/.test(canonical) ? { type: 'preset', name: canonical.match(/^portal-preset\s+(\S+)$/)[1] } : null);
         if (!escaped && /^portal-media(?:\s|$)/.test(canonical)) {
@@ -64,4 +65,7 @@ function portalExitInput() {
   return (data) => input(data)?.type === 'exit';
 }
 
-module.exports = { portalCommandInput, portalExitInput };
+// Erase an intercepted prompt command without sending SIGINT to its shell/TUI.
+function clearCommandLine(command) { return /(?:^|[\\/])cmd(?:\.exe)?$/i.test(command) ? '\x1b' : '\x15'; }
+
+module.exports = { portalCommandInput, portalExitInput, clearCommandLine };

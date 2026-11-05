@@ -12,6 +12,8 @@ const { cwdTracker, currentDirectory } = require('./cwd');
 const { newWindowArgs } = require('./window-launch');
 const { readInstallation } = require('./installation');
 const { normalizeSource, resolveMedia, needsMediaBase } = require('./media');
+const updater = require('./updater');
+const { clearCommandLine } = require('./portal-command');
 
 const sessions = new Map();
 const logoCache = new Map();
@@ -23,6 +25,7 @@ const MAX_UNEXPECTED_EXITS = 3;
 let mainWindow;
 let config;
 let endingMedia;
+let updateInProgress = false;
 
 function configuredEnding() {
   if (endingMedia) return endingMedia;
@@ -157,6 +160,33 @@ function installIpc() {
     }
   });
   ipcMain.handle('app:config', () => config);
+  ipcMain.handle('app:update', async (event, checkOnly = false, sourceId) => {
+    if (event.sender !== mainWindow?.webContents || typeof checkOnly !== 'boolean') throw new Error('Invalid update request');
+    const source = ownedSession(event, sourceId);
+    if (!source) throw new Error('Source terminal session not found');
+    source.child?.write(clearCommandLine(resolveConsole(config, sourceId).command));
+    if (updateInProgress) throw new Error('An update is already in progress.');
+    updateInProgress = true;
+    const status = (message) => { if (!event.sender.isDestroyed()) event.sender.send('app:update-status', message); };
+    try {
+      status('CHECKING FOR UPDATES...');
+      const result = await updater.checkForUpdate(app.getVersion());
+      if (!result.available) return { message: `UP TO DATE (${app.getVersion()}; latest release ${result.version})` };
+      if (checkOnly) return { message: `UPDATE AVAILABLE: ${result.version}   RUN pupdate TO INSTALL` };
+      const context = updater.updateContext({ packaged: app.isPackaged });
+      const choice = await dialog.showMessageBox(mainWindow, { type: 'question', buttons: ['Update', 'Cancel'], defaultId: 0, cancelId: 1,
+        title: 'Update Portal Console', message: `Update ${app.getVersion()} to ${result.version}?`,
+        detail: 'The installer will close this window and stop its terminal sessions. Close other Portal Console windows before continuing. Settings and the existing installation method are retained.' });
+      if (choice.response !== 0) return { message: 'UPDATE CANCELLED' };
+      status(`DOWNLOADING AND VERIFYING ${result.version}...`);
+      const plan = await updater.prepareUpdate(result.release, context, { logFile: path.join(app.getPath('userData'), 'logs', 'update.log') });
+      try { await updater.launchUpdate(plan); }
+      catch (error) { fs.rmSync(plan.work, { recursive: true, force: true }); throw error; }
+      diagnostic(`Update to ${result.version} handed to ${context.method} installer; log: ${plan.logFile}`);
+      setTimeout(() => app.quit(), 150);
+      return { message: 'INSTALLER STARTED; CLOSING TERMINALS...' };
+    } finally { updateInProgress = false; }
+  });
   ipcMain.handle('app:new-window', (event) => {
     if (event.sender !== mainWindow?.webContents) throw new Error('Invalid window request');
     const args = newWindowArgs(process.argv.slice(1), app.isPackaged, path.join(__dirname, '..'));

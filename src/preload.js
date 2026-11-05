@@ -16,6 +16,12 @@ contextBridge.exposeInMainWorld('portalConsole', {
   fullscreen: (value) => ipcRenderer.send('app:fullscreen', value),
   quit: () => ipcRenderer.send('app:quit'),
   newWindow: () => ipcRenderer.invoke('app:new-window'),
+  update: (checkOnly = false, sourceId) => ipcRenderer.invoke('app:update', checkOnly, sourceId),
+  onUpdateStatus: (callback) => {
+    const listener = (_event, message) => callback(message);
+    ipcRenderer.on('app:update-status', listener);
+    return () => ipcRenderer.removeListener('app:update-status', listener);
+  },
   preset: (name) => ipcRenderer.invoke('app:preset', name),
   presets: () => ipcRenderer.invoke('app:preset-list'),
   mediaUrl: (id) => ipcRenderer.invoke('app:media-url', id),

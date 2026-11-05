@@ -7,6 +7,8 @@ function helpSections(frontend, config) {
       ['pmedia SOURCE / portal-media SOURCE', gui ? 'Open a new media pane; http(s) defaults to web, local files use their extension. Quote paths containing spaces.' : 'Graphical media requires the GUI; use w3m URL in a text terminal.'],
       ['pmedia --kind TYPE --source SOURCE', 'Override detection with image/pdf/video/web. A linked PDF or video needs --kind pdf/video because URLs default to web.'],
       ['pexit / portal-exit', 'Quit the entire application and stop all of its terminal sessions.'],
+      ['pupdate / portal-update', 'Check the latest public GitHub release and install it using the current installation method. Confirm before stopping sessions. No GitHub login or gh required.'],
+      ['pupdate --check / portal-update --check', 'Check only; do not download, install or stop sessions. Network/install errors leave the current session available.'],
       ['ppreset NAME / portal-preset NAME', gui ? 'Change modern layout live. Existing panes are retained; select panes to close when reducing their number.' : 'Live layout changes are GUI-only. Choose the layout at startup with --preset NAME.']
     ] },
     { title: 'PANE SELECTION', entries: gui ? [
@@ -61,7 +63,7 @@ function helpSections(frontend, config) {
       ['Mouse wheel / Alt+wheel', 'Scroll local shell history; alternate-screen apps receive wheel events. Alt+wheel always defers to the app.'],
       ['Mouse recovery Ctrl+Shift+M', 'Reset leaked mouse tracking in the focused terminal without restarting SSH or the shell. Command mode M does the same.'],
       ['Normal-screen mouse motion', 'Default local mode suppresses idle motion reports and keeps history from jumping to the bottom. Alternate-screen apps and Alt motion still work. mouseWheelMode: application opts in to native handling everywhere.'],
-      ['CRT button', 'Adjust glow, scanlines, vignette and glass. Changes are window-local; appearance.crt stores startup defaults.'],
+      ['CRT effects / command mode G', 'Temporarily disabled to reduce resource usage, even if saved appearance.crt.enabled is true. Implementation and saved preferences are retained.'],
       ['kind: image / pdf / video / web', 'Display configured media, or use portal-media to append a pane without restarting terminals.'],
       ['Pane appearance / startupCommand', 'Set per-pane font/colors and a command for newly created or manually restarted panes.'],
       ['w3m URL', 'A text browser can run inside a terminal too. Ubuntu: sudo apt install w3m; macOS: brew install w3m; MSYS2: pacman -S w3m. For SSH, install on the destination host.']

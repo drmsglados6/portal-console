@@ -1,5 +1,11 @@
 # TODO
 
+- [ ] v0.1.8を全OS CIで検証して配布する（pupdate／portal-update、一時更新スクリプト、F4、短縮名、CRT停止）。
+- [x] CRT再現を一時停止し、保存済みenabled=trueも描画せず実装・設定を保持する。
+- [x] AGENTS.md・DEVELOPMENT_CONTEXT.mdと0.2.0ネイティブ化要件を整備する。
+- [ ] 次の0.1.xでRust共通coreの小規模試作を行い、Electronからの呼び出し方式を選ぶ。JS互換fixtureと各OSの配布物で検証する。
+- [ ] Rust版へ移行する前に、旧ElectronのNode／ASARを前提にした更新・インストール記録・CLI登録の橋渡し方式を確定する。
+
 - [x] v0.1.7でSGRマウス移動の漏れとスクロール巻き戻りを抑制し、Macの署名整合性・記録ファイル配置を全OS CIで検証して配布した。
 - [ ] v0.1.7を実際のMac Intel／ARM64で確認する（Intelの全端末スクロール、SSH先へのマウス移動文字、ダウンロードしたDMGからコピー後の起動とGatekeeper挙動）。
 - [ ] macOSのDeveloper ID署名・Apple公証を設定する（現在はアドホック署名のみ）。

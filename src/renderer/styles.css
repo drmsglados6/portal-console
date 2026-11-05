@@ -296,6 +296,10 @@ body.ending-mode .screen { visibility: hidden; }
   text-shadow: var(--crt-glow);
 }
 
+/* Suspend decorative blur along with the CRT overlays. */
+body.crt-paused :is(.pane, .ending-panel, .preset-dialog) { box-shadow: none; }
+body.crt-paused .mode-indicator { filter: none; }
+
 #crt-dialog { width: min(400px, 90vw); }
 #crt-dialog input[type="checkbox"] { display: inline-block; width: auto; margin-right: 8px; }
 #crt-dialog input[type="range"] { padding: 0; margin: 5px 0; accent-color: var(--orange); }

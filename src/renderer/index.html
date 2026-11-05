@@ -43,7 +43,7 @@
       <label>SCANLINE SPACING <input type="range" data-crt="scanlineSpacing" min="2" max="8" step="1"><output data-crt-value="scanlineSpacing"></output></label>
       <label>VIGNETTE <input type="range" data-crt="vignette" min="0" max="1" step="0.01"><output data-crt-value="vignette"></output></label>
       <label>GLASS <input type="range" data-crt="glass" min="0" max="1" step="0.01"><output data-crt-value="glass"></output></label>
-      <p>Static effects, no GPU requirement. Changes last for this window; save appearance.crt in config.json for startup defaults.</p>
+      <p>CRT effects are temporarily disabled to reduce resource usage. The implementation and saved preferences are retained.</p>
       <div class="preset-actions"><button type="button" id="crt-close">CLOSE</button></div>
     </dialog>
     <dialog id="media-dialog" class="preset-dialog" aria-label="Open media">
@@ -63,7 +63,7 @@
       <button type="button" data-layout="original" aria-pressed="false">ORIGINAL</button>
       <button type="button" data-layout="modern" aria-pressed="false">MODERN</button>
       <button type="button" id="new-window-button">+ WINDOW</button>
-      <button type="button" id="crt-button" aria-pressed="false">CRT</button>
+      <button type="button" id="crt-button" aria-pressed="false" disabled hidden>CRT</button>
       <button type="button" id="media-button">+ MEDIA</button>
     </nav>
     <script src="renderer.js"></script>

@@ -12,20 +12,27 @@ import hashlib
 import shlex
 
 
-def check(arguments):
+def check(arguments, check_updates=False):
     master, slave = os.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 40, 160, 0, 0))
     env = dict(os.environ)
     for name in ('DISPLAY', 'WAYLAND_DISPLAY', 'ELECTRON_RUN_AS_NODE'):
         env.pop(name, None)
     env.update(TERM='xterm-256color', SHELL='/bin/bash')
+    directory = tempfile.TemporaryDirectory(prefix='portal-cwd-')
+    extra = []
+    if check_updates:
+        harness = os.path.join(directory.name, 'updater-check.js')
+        with open(harness, 'w') as script:
+            script.write("const path=require('node:path');const root=path.join(path.dirname(process.execPath),'resources','app.asar');let checks=0;require(path.join(root,'src/updater')).checkForUpdate=async()=>{if(checks++)throw new Error('TEST_OFFLINE');return {available:false,version:'0.1.8'}};require(path.join(root,'src/headless')).run(process.argv.slice(2)).catch(e=>{console.error(e);process.exitCode=1});")
+        env['ELECTRON_RUN_AS_NODE'] = '1'
+        extra = [harness]
     child = subprocess.Popen(
-        [os.environ.get('PORTAL_CONSOLE_EXECUTABLE', 'release/linux-unpacked/portal-console'), '--mode', 'modern', *arguments],
+        [os.environ.get('PORTAL_CONSOLE_EXECUTABLE', 'release/linux-unpacked/portal-console'), *extra, '--mode', 'modern', *arguments],
         stdin=slave, stdout=slave, stderr=slave, env=env,
     )
     os.close(slave)
     output = b''
-    directory = tempfile.TemporaryDirectory(prefix='portal-cwd-')
     try:
         def wait_for(pattern):
             nonlocal output
@@ -54,6 +61,20 @@ def check(arguments):
 
         wait_for(b'PRIMARY TERMINAL')
         main_pid = shell_pid('main_before')
+        if check_updates:
+            os.write(master, b'pupdate --check\r')
+            wait_for(b'UP TO DATE')
+            os.write(master, b'\x1b')
+            assert shell_pid('after_update_check') == main_pid
+            os.write(master, b'portal-update --check\r')
+            wait_for(b'TEST_OFFLINE')
+            os.write(master, b'\x1b')
+            assert shell_pid('after_update_error') == main_pid
+            prefix(b'q')
+            child.wait(timeout=10)
+            assert child.returncode == 0
+            print('Headless update aliases, check-only and recoverable offline error verified')
+            return
         prefix(b'n')
         auxiliary_pid = shell_pid('aux_before')
         assert main_pid != auxiliary_pid
@@ -106,3 +127,4 @@ def check(arguments):
 
 check(['--headless'])
 check([])
+check(['--headless'], check_updates=True)

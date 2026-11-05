@@ -9,6 +9,9 @@ module.exports = async (context) => {
   fs.mkdirSync(resources, { recursive: true });
   const { version, build } = require('../package.json');
   fs.writeFileSync(path.join(resources, 'build-info.json'), `${JSON.stringify({ appId: build.appId, version })}\n`);
+  const releaseDirectory = path.dirname(context.appOutDir);
+  fs.copyFileSync(path.join(__dirname, '..', 'dist', 'update-once.cjs'), path.join(releaseDirectory, 'update-once.cjs'));
+  for (const name of ['update-once.ps1', 'update-once.sh']) fs.copyFileSync(path.join(__dirname, '..', 'installer', name), path.join(releaseDirectory, name));
   if (context.electronPlatformName === 'linux') {
     const executable = path.join(context.appOutDir, 'portal-console');
     fs.renameSync(executable, path.join(context.appOutDir, 'portal-console-bin'));

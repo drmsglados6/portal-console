@@ -4,7 +4,16 @@ $setup = Get-ChildItem -LiteralPath 'release' -Filter '*-setup.exe' | Select-Obj
 if (!$setup) { throw 'NSIS installer missing' }
 try {
   for ($attempt = 1; $attempt -le 2; $attempt++) {
-    $process = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$directory") -Wait -PassThru
+    if ($attempt -eq 1) { $process = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$directory") -Wait -PassThru }
+    else {
+      $work = Join-Path ([IO.Path]::GetTempPath()) "portal-worker-$([guid]::NewGuid())"
+      New-Item -ItemType Directory -Path $work | Out-Null
+      $plan = @{ version='fixture'; parentPid=0; method='windows-nsis'; file=$setup.FullName; target=$directory; work=$work; logFile=(Join-Path $work 'update.log'); digest=(Get-FileHash -LiteralPath $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+      $planFile = Join-Path $work 'plan.json'
+      $plan | ConvertTo-Json | Set-Content -LiteralPath $planFile -Encoding UTF8
+      $worker = Join-Path (Get-Location) 'src\update-runner.ps1'
+      $process = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$worker`"", '-PlanFile', "`"$planFile`"", '-NonInteractive', '-NoRestart') -Wait -PassThru
+    }
     if ($process.ExitCode -ne 0) { throw "NSIS installer failed: $($process.ExitCode)" }
     $record = Get-Content -LiteralPath (Join-Path $directory '.portal-console-install.json') -Raw | ConvertFrom-Json
     if ($record.method -ne 'windows-nsis') { throw 'NSIS install record missing or incorrect' }

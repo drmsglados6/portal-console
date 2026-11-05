@@ -9,6 +9,8 @@ const { filterMouseMotion, resetMouseTracking, resetAfterAlternateScreen, shellM
 const { helpSections } = require('../help');
 const { appendMediaPane, removeMediaPane, inferMediaKind } = require('../media-command');
 const { createMediaView } = require('./media-view');
+// Suspended for resource usage; keep the implementation and saved preferences.
+const CRT_EFFECTS_AVAILABLE = false;
 
 const screen = document.querySelector('#screen');
 const modeIndicator = document.querySelector('#mode-indicator');
@@ -77,15 +79,21 @@ async function openMediaDialog(source = '', error = '', kind = 'auto', sourceId 
 
 function applyCrt() {
   const crt = config.appearance.crt;
+  const enabled = CRT_EFFECTS_AVAILABLE && crt.enabled;
   const style = document.body.style;
-  document.body.classList.toggle('crt-enabled', crt.enabled);
-  style.setProperty('--crt-scanlines', crt.scanlines);
+  document.body.classList.toggle('crt-enabled', enabled);
+  document.body.classList.toggle('crt-paused', !CRT_EFFECTS_AVAILABLE);
+  style.setProperty('--crt-scanlines', enabled ? crt.scanlines : 0);
   style.setProperty('--crt-spacing', `${crt.scanlineSpacing}px`);
-  style.setProperty('--crt-vignette', crt.vignette);
-  style.setProperty('--crt-glass', crt.glass);
-  style.setProperty('--crt-glow', crt.glow === 0 ? 'none' : `0 0 ${(1 + crt.glow * 3).toFixed(2)}px color-mix(in srgb, currentColor ${(crt.glow * 70).toFixed(0)}%, transparent)`);
-  document.querySelector('#crt-button').setAttribute('aria-pressed', String(crt.enabled));
-  document.querySelector('#crt-enabled').checked = crt.enabled;
+  style.setProperty('--crt-vignette', enabled ? crt.vignette : 0);
+  style.setProperty('--crt-glass', enabled ? crt.glass : 0);
+  style.setProperty('--crt-glow', !enabled || crt.glow === 0 ? 'none' : `0 0 ${(1 + crt.glow * 3).toFixed(2)}px color-mix(in srgb, currentColor ${(crt.glow * 70).toFixed(0)}%, transparent)`);
+  const button = document.querySelector('#crt-button');
+  button.setAttribute('aria-pressed', String(enabled));
+  button.hidden = !CRT_EFFECTS_AVAILABLE;
+  button.disabled = !CRT_EFFECTS_AVAILABLE;
+  crtDialog.querySelectorAll('input').forEach((input) => { input.disabled = !CRT_EFFECTS_AVAILABLE; });
+  document.querySelector('#crt-enabled').checked = enabled;
   crtDialog.querySelectorAll('[data-crt]').forEach((input) => {
     input.value = crt[input.dataset.crt];
     crtDialog.querySelector(`[data-crt-value="${input.dataset.crt}"]`).textContent = Number(input.value).toFixed(input.dataset.crt === 'scanlineSpacing' ? 0 : 2);
@@ -93,12 +101,14 @@ function applyCrt() {
 }
 
 function toggleCrt() {
+  if (!CRT_EFFECTS_AVAILABLE) { setCommandMode(true, 'CRT TEMPORARILY DISABLED   ESC/I TERMINAL'); return; }
   config.appearance.crt.enabled = !config.appearance.crt.enabled;
   applyCrt();
   setCommandMode(true, `CRT ${config.appearance.crt.enabled ? 'ON' : 'OFF'}   G TOGGLE   ESC/I TERMINAL`);
 }
 
 function openCrtSettings() {
+  if (!CRT_EFFECTS_AVAILABLE) return;
   applyCrt();
   crtDialog.showModal();
   document.querySelector('#crt-enabled').focus();
@@ -448,6 +458,12 @@ async function terminalElement(spec) {
     else if (command?.type === 'help') showHelp(spec.id);
     else if (command?.type === 'restart') { focusPane(spec.id); restartFocusedTerminal(command.preserveCwd !== false); }
     else if (command?.type === 'media') openMedia(command, spec.id);
+    else if (command?.type === 'update') {
+      focusPane(spec.id);
+      setCommandMode(true, 'CHECKING FOR UPDATES...');
+      window.portalConsole.update(command.checkOnly, spec.id).then((result) => setCommandMode(true, `${result.message}   ESC/I TERMINAL`))
+        .catch((error) => setCommandMode(true, `UPDATE FAILED: ${error.message}   ESC/I TERMINAL`));
+    }
     else window.portalConsole.write(spec.id, data);
   });
   pane.addEventListener('pointerdown', () => focusPane(spec.id));
@@ -932,6 +948,7 @@ function bindKeys() {
 
 async function start() {
   config = await window.portalConsole.config();
+  window.portalConsole.onUpdateStatus((message) => setCommandMode(true, message));
   window.portalConsole.onMediaMaximize((guestId) => {
     for (const view of media.values()) if (view.guestId() === guestId) { focusPane(view.spec.id, false); view.toggleMaximize(true); break; }
   });

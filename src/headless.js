@@ -7,9 +7,10 @@ const { prepareScene, sceneState } = require('./ending-state');
 const { importPortalCredits } = require('./portal-import');
 const { refreshEnvironment, resolveConsole, prepareConsole } = require('./shell');
 const { cwdTracker, currentDirectory } = require('./cwd');
-const { portalCommandInput } = require('./portal-command');
+const { portalCommandInput, clearCommandLine } = require('./portal-command');
 const { helpSections, helpLines } = require('./help');
 const { headlessInput } = require('./headless-input');
+const updater = require('./updater');
 
 const ESC = '\x1b[';
 const ORANGE = `${ESC}38;2;255;157;32m`;
@@ -112,6 +113,8 @@ async function run(argv = []) {
   let closed = false;
   let logoSize = '';
   let logoGeneration = 0;
+  let updateBusy = false;
+  let pendingUpdate = null;
 
   const specs = config.mode === 'original'
     ? [{ id: 'main', title: 'PRIMARY TERMINAL', kind: 'terminal' }, { id: 'aux', title: 'AUXILIARY TERMINAL', kind: 'terminal' }, { id: 'logo', title: 'APERTURE SCIENCE', kind: 'logo' }]
@@ -304,6 +307,48 @@ async function run(argv = []) {
     process.exitCode = code;
   }
 
+  async function startUpdate(checkOnly) {
+    if (updateBusy || pendingUpdate) return;
+    updateBusy = true;
+    commandMode = true;
+    commandStatus = 'CHECKING FOR UPDATES...'; draw();
+    try {
+      const current = require('../package.json').version;
+      const result = await updater.checkForUpdate(current);
+      if (closed) return;
+      if (!result.available) commandStatus = `UP TO DATE (${current}; latest release ${result.version})  ESC/I TERMINAL`;
+      else if (checkOnly) commandStatus = `UPDATE AVAILABLE: ${result.version}  RUN pupdate TO INSTALL  ESC/I TERMINAL`;
+      else {
+        const context = updater.updateContext();
+        pendingUpdate = { release: result.release, context };
+        commandStatus = `UPDATE ${current} -> ${result.version}? Y INSTALL AND STOP SESSIONS / N CANCEL; CLOSE OTHER WINDOWS`;
+      }
+    } catch (error) { commandStatus = `UPDATE FAILED: ${error.message}  ESC/I TERMINAL`; }
+    finally { updateBusy = false; if (!closed) draw(); }
+  }
+
+  async function installPendingUpdate() {
+    const pending = pendingUpdate;
+    pendingUpdate = null; updateBusy = true;
+    commandStatus = 'DOWNLOADING AND VERIFYING UPDATE...'; draw();
+    let plan;
+    try {
+      plan = await updater.prepareUpdate(pending.release, pending.context);
+      if (closed) { require('node:fs').rmSync(plan.work, { recursive: true, force: true }); return; }
+      if (process.platform === 'win32') {
+        await updater.launchUpdate(plan);
+        cleanup(); process.exit(0);
+      } else {
+        cleanup();
+        process.exitCode = await updater.launchUpdate(plan, { foreground: true });
+      }
+    } catch (error) {
+      if (plan) require('node:fs').rmSync(plan.work, { recursive: true, force: true });
+      if (closed) { process.stderr.write(`Update failed: ${error.message}\n`); process.exitCode = 1; }
+      else { commandStatus = `UPDATE FAILED: ${error.message}  ESC/I TERMINAL`; draw(); }
+    } finally { updateBusy = false; }
+  }
+
   function startPane(pane, retainedCwd) {
     const previous = pane.child;
     pane.child = null;
@@ -409,6 +454,12 @@ async function run(argv = []) {
       else if (data === '0') seekEnding(0, true);
       return;
     }
+    if (updateBusy) return;
+    if (pendingUpdate) {
+      if (data.toLowerCase() === 'y') installPendingUpdate();
+      else if (data.toLowerCase() === 'n' || data === '\x1b') { pendingUpdate = null; commandStatus = 'UPDATE CANCELLED  ESC/I TERMINAL'; draw(); }
+      return;
+    }
     if (commandMode) {
       if (data === '\x1b' || data.toLowerCase() === 'i') {
         commandMode = false;
@@ -432,6 +483,9 @@ async function run(argv = []) {
       pane.child?.write('\x03');
       pane.commandInput.reset();
       showHelp();
+    } else if (command?.type === 'update') {
+      pane.child?.write(clearCommandLine(resolveConsole(config, focusedId).command)); pane.commandInput.reset();
+      startUpdate(command.checkOnly);
     } else if (command?.type === 'media') {
       pane.child?.write('\x03'); pane.commandInput.reset(); commandMode = true;
       commandStatus = command.error || 'Media panes require the GUI. Use w3m URL for a text browser. ? HELP';

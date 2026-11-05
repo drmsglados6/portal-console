@@ -26,6 +26,10 @@ if (!process.argv.includes('--inside-electron')) {
     const os = require('node:os');
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'portal cli '));
     try {
+      const bootstrap = spawnSync(process.execPath, [path.join(resources, 'app.asar', 'dist', 'update-once.cjs'), '--help'], {
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8', timeout: 20000
+      });
+      if (bootstrap.status !== 0 || !bootstrap.stdout?.includes('one-time updater')) throw new Error(`Bundled migration updater failed: ${bootstrap.error || bootstrap.stderr}`);
       const target = process.platform === 'linux' ? path.join(path.dirname(process.execPath), 'portal-console') : process.execPath;
       const directory = path.join(temporary, 'bin with spaces');
       const registered = spawnSync(process.execPath, [path.join(resources, 'app.asar', 'src', 'register-cli.js'), target, directory, '--skip-environment'], {
